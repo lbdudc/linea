@@ -9,7 +9,7 @@
 
 ## Releasing (maintainers)
 
-- **Releases**: create a GitHub Release with a tag `vX.Y.Z` (GitHub can propose the next tag). The workflows do the rest: npm, the commit list in the notes, and the Docker images.
+- **Releases**: create a GitHub Release with a tag `vX.Y.Z`. Bump the **patch** (0.3.1, 0.3.2...) unless you mean a bigger change: minor and major bumps are deliberate. The workflows do the rest: npm, the commit list in the notes, and the Docker images.
 - **npm**: no token. Each package has a *trusted publisher* on npmjs.com (package → Settings → Trusted Publisher: GitHub Actions, `lbdudc/linea`, workflow `release.yml`). A new package needs one before its first release (publish it once by hand, then add it).
 - **Docker**: images go to `ghcr.io/lbdudc/linea-server` and `linea-client`. For Docker Hub too, set the repository variable `DOCKERHUB_ENABLED=true` and the secrets `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`.
 - By hand, if ever needed: `node scripts/set-version.mjs vX.Y.Z` then `npm run publish:core` (and `git`, `cli`, `ci`, `sdk`).
