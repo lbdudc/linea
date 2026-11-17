@@ -14,15 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MONGOMS_DOWNLOAD_DIR: ${{ github.workspace }}/.mongodb-binaries
-      # the plugins and the metamodels live in their own repositories; the tests that need them find them here
-      PLUGINS_DIR: ${{ github.workspace }}/_deps/linea-plugins
+      # the metamodels live in their own repository; the plugins' own tests run in lbdudc/linea-plugins
       LINEA_METAMODELS_DIR: ${{ github.workspace }}/_deps/linea-metamodels
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: lbdudc/linea-plugins
-          path: _deps/linea-plugins
       - uses: actions/checkout@v4
         with:
           repository: lbdudc/linea-metamodels
@@ -32,6 +27,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - uses: oven-sh/setup-bun@v2
+      # the git host tests make commits
+      - run: git config --global user.name ci && git config --global user.email ci@example.com
       - run: npm ci
       # the server tests start an in-memory MongoDB: fetch its binary once, before the test files race to download it
       - uses: actions/cache@v4
