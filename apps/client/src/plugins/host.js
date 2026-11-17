@@ -1,11 +1,10 @@
 import { api } from '../boot/axios'
 import { createUi, resetContributions } from './registry'
+import pluginModules from 'virtual:linea-plugins'
 
-// The client code of every plugin of the `plugins/` folder next to this checkout; it is built into the app, but only what the server
+// The client code of every plugin of PLUGINS_DIR (the `linea-plugins` checkout next to this one by default), through the virtual module of plugin-deps.mjs; it is built into the app, but only what the server
 // says is enabled gets to `register`.
-const available = import.meta.glob('../../../../plugins/*/client/index.js')
-
-const idOf = (file) => file.split('/').slice(-3)[0]
+const available = pluginModules
 
 let loaded = false
 let known = null // the ids and versions the page registered, to see whether the server's list changed
@@ -27,10 +26,10 @@ export const loadPlugins = async ({ router, i18n, layout }) => {
   let changed = false
   for (const info of enabled) {
     const { id } = info
-    const file = Object.keys(available).find((candidate) => idOf(candidate) === id)
-    if (!file) continue // a plugin with no client code (a remote service, say)
+    const load = available[id]
+    if (!load) continue // a plugin with no client code (a remote service, say)
     try {
-      const module = await available[file]()
+      const module = await load()
       await (module.default ?? module).register(createUi({ plugin: id, router, i18n, layout, api, info }))
       changed = true
     } catch (error) {
