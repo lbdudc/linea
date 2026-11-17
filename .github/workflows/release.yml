@@ -61,7 +61,7 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
       - name: Every commit since the previous tag goes in the notes
         run: |
-          previous=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
+          previous=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "$TAG^" 2>/dev/null || true)
           range="${previous:+$previous..}$TAG"
           gh release view "$TAG" --json body --jq .body > notes.md
           {
