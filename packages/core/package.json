@@ -36,8 +36,7 @@
     "feature-model",
     "uvl",
     "derivation",
-    "linea",
-    "splalm"
+    "linea"
   ],
   "scripts": {
     "build": "tsc && node scripts/copy-assets.mjs",

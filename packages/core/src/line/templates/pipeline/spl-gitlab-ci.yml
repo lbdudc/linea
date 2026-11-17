@@ -25,7 +25,8 @@
 # Needs these CI/CD variables:
 #   LINEA_CI_TOKEN    a token that can read the product repositories and the registry of packages, and
 #                     comment on merge requests
-#   LINEA_CI_PACKAGE  where linea-ci is installed from (npm name, git URL or tarball)
+#   LINEA_CI_PACKAGE  where linea-ci is installed from (default: the latest @lbdudc/linea-ci on npm; pin one
+#                     with "@lbdudc/linea-ci@0.2.0", or give a git URL or tarball)
 #   LINEA_URL, LINEA_TOKEN   only for releases: the address of LINEA and a session token of a user who
 #                     can generate the products
 
@@ -42,7 +43,7 @@ workflow:
     - if: '$CI_COMMIT_TAG'
 
 variables:
-  LINEA_CI_PACKAGE: "git+https://$CI_SERVER_HOST/linea/linea-ci.git"
+  LINEA_CI_PACKAGE: "@lbdudc/linea-ci"
   LINEA_CI_MAX_PRODUCTS: "5"
   LINEA_CI_MAX_SAMPLES: "30"
   LINEA_CI_MAX_CCN: "15"
@@ -59,7 +60,7 @@ stages:
 .linea-ci:
   image: node:22
   before_script:
-    # a package kept in this GitLab (a git URL on its host) is cloned with the token of the job
+    # only needed when LINEA_CI_PACKAGE is a git URL on this GitLab: it is cloned with the token of the job
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/".insteadOf "https://${CI_SERVER_HOST}/"
     - npm install --global "$LINEA_CI_PACKAGE"
 
