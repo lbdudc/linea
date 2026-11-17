@@ -57,9 +57,7 @@ point `PLUGINS_DIR` and `LINEA_METAMODELS_DIR` at them; without them the tests t
 
 ## Release
 
-Packages: add a changeset (`npm run changeset`) with your change; on `main` the *Release* workflow opens a "version packages" PR, and merging it
-publishes what changed to npm. Images: push a tag `vX.Y.Z` and the *Docker* workflow publishes `ghcr.io/lbdudc/linea-server` and `linea-client`
-(amd64 and arm64). See [CONTRIBUTING.md](CONTRIBUTING.md).
+Create a **GitHub Release** (tag `vX.Y.Z`, the tag is the version of every package). The *Release* workflow then publishes `@lbdudc/linea-core`, `-git`, `-cli`, `-ci` and `-plugin-sdk` to npm with that version (provenance, no token: npm trusted publishing), adds every commit since the previous tag to the release notes, and the *Docker* workflow publishes `ghcr.io/lbdudc/linea-server` and `linea-client` (amd64 and arm64). A tag like `v1.2.3-rc.1` is a prerelease: it goes to the `next` dist-tag. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

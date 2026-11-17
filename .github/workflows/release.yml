@@ -1,26 +1,28 @@
 name: Release
 
-# Publishing uses npm trusted publishing (OIDC): no token. Each package has a trusted publisher on npmjs.com
-# (lbdudc/linea, workflow release.yml). Packages: every change that should be released carries a changeset (`npm run changeset`). On main, this workflow opens (or updates)
-# a "Version packages" pull request; merging it publishes what changed to npm (@lbdudc/linea-core, -git, -cli, -ci, -plugin-sdk),
-# each with its own version, and tags it.
+# Creating a GitHub Release is what publishes. Its tag (v1.2.3) is the version of every package:
+#   - npm: @lbdudc/linea-core, -git, -cli, -ci and -plugin-sdk, with provenance, through npm trusted publishing (no token: each package has a
+#     trusted publisher on npmjs.com for lbdudc/linea, workflow release.yml). A prerelease tag (v1.2.3-rc.1) goes to the `next` dist-tag.
+#   - the release notes get every commit since the previous tag.
+#   - Docker: the tag also starts docker.yml (ghcr.io/lbdudc/linea-server and linea-client).
 
 on:
-  push:
-    branches: [main]
-
-concurrency: release-${{ github.ref }}
+  release:
+    types: [published]
 
 permissions:
-  contents: write
-  pull-requests: write
-  id-token: write # npm provenance
+  contents: write # the release notes
+  id-token: write # npm trusted publishing (OIDC) and provenance
 
 jobs:
-  release:
+  npm:
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -30,12 +32,43 @@ jobs:
       # trusted publishing needs npm 11.5.1 or later (11, not 12: 12 refuses the git dependency of spl-js-engine)
       - run: npm install -g npm@11
       - run: npm ci
-      - uses: changesets/action@v1
+      - name: Version of the packages = the tag
+        run: node scripts/set-version.mjs "$TAG"
+      - run: npm run build
+      - run: npm run build -w @lbdudc/linea-cli
+      - name: Publish what is not on npm yet
+        run: |
+          version="${TAG#v}"
+          dist_tag=latest
+          case "$version" in *-*) dist_tag=next;; esac
+          for name in linea-core linea-git linea-cli linea-ci linea-plugin-sdk; do
+            if npm view "@lbdudc/$name@$version" version >/dev/null 2>&1; then
+              echo "@lbdudc/$name@$version is already on npm"
+            else
+              npm publish -w "@lbdudc/$name" --access public --tag "$dist_tag"
+            fi
+          done
+
+  notes:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
         with:
-          version: npm run version
-          publish: npm run release
-          title: "chore: version packages"
-          commit: "chore: version packages"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: "true"
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
+      - name: Every commit since the previous tag goes in the notes
+        run: |
+          previous=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
+          range="${previous:+$previous..}$TAG"
+          gh release view "$TAG" --json body --jq .body > notes.md
+          {
+            echo
+            echo "## Commits"
+            echo
+            git log --no-merges --pretty="- %s ([%h](https://github.com/$GITHUB_REPOSITORY/commit/%H))" $range
+            if [ -n "$previous" ]; then echo; echo "**Full changelog**: https://github.com/$GITHUB_REPOSITORY/compare/$previous...$TAG"; fi
+          } >> notes.md
+          gh release edit "$TAG" --notes-file notes.md

@@ -17,9 +17,6 @@
     "build:all": "npm run build && npm run build -w @lbdudc/linea-client",
     "test": "npm run build && npm test -w @lbdudc/linea-core -w @lbdudc/linea-git -w @lbdudc/linea-ci -w @lbdudc/linea-cli -w @lbdudc/linea-server -w @lbdudc/linea-client",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "changeset": "changeset",
-    "version": "changeset version",
-    "release": "npm run build && changeset publish",
     "publish:core": "npm run build -w @lbdudc/linea-core && npm publish -w @lbdudc/linea-core",
     "publish:git": "npm run build -w @lbdudc/linea-core -w @lbdudc/linea-git && npm publish -w @lbdudc/linea-git",
     "publish:cli": "npm run build && npm run build -w @lbdudc/linea-cli && npm publish -w @lbdudc/linea-cli",
@@ -31,7 +28,6 @@
     "test:e2e": "npm test -w linea-e2e"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.10",
     "concurrently": "^8.2.2",
     "patch-package": "^8.0.1"
   }
