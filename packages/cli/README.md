@@ -21,27 +21,11 @@ Every command works in two ways, with the same words: as `linea <command>` in a 
 Requires [Bun](https://bun.sh) and `git`.
 
 ```bash
-cd linea-core && bun link               # one-time per machine: the CLI uses the library from this checkout
-cd ../linea-cli && bun install && bun run build
+bun add -g @lbdudc/linea-cli     # then: linea
+bunx @lbdudc/linea-cli           # or run it once without installing
 ```
 
-To type `linea` from anywhere, make it a command of your shell that runs the bundle with Bun (`bun link` alone does not do that):
-
-```powershell
-# PowerShell, once:
-Add-Content $PROFILE 'function linea { bun --no-env-file C:\path\to\linea-cli\dist\index.js @args }'
-```
-```bash
-# bash/zsh, once:
-echo 'linea() { bun --no-env-file /path/to/linea-cli/dist/index.js "$@"; }' >> ~/.bashrc
-```
-
-(`dist/index.js` needs Bun, not Node.)
-
-`bun run build` makes `dist/index.js`, which is what `linea` runs: it works from **any folder** (running `src/index.tsx` directly
-needs this folder's `bunfig.toml`, so only do that to develop the CLI: `bun run dev`).
-
-`linea doctor` says whether everything is in place: git, the workspace, an editor, the git host and, with `--online`, the server.
+From a checkout of [lbdudc/linea](https://github.com/lbdudc/linea): `npm install && npm run build -w @lbdudc/linea-cli`, then `bun packages/cli/dist/index.js`.
 
 ## Who does what
 

@@ -6,6 +6,12 @@ services:
       - linea-network
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      # healthy once the replica set has a primary (mongo-init-replica starts it): the server needs one to start
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.hello().isWritablePrimary ? 0 : 1)"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
     restart: unless-stopped
 
   mongo-init-replica:
@@ -95,7 +101,7 @@ services:
       start_period: 30s
     depends_on:
       mongo:
-        condition: service_started
+        condition: service_healthy
       mongo-init-replica:
         condition: service_started
     restart: unless-stopped
