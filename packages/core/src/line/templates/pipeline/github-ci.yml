@@ -1,0 +1,50 @@
+# The same two jobs as .gitlab-ci.yml, for GitHub Actions.
+#
+# Test commands live in ci/test-server.sh and ci/test-client.sh.
+# Domain engineers edit those scripts to wire in real tests; this YAML should
+# not need changes.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test_server:
+    runs-on: ubuntu-latest
+    container: gradle:8-jdk21
+    env:
+      GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          key: gradle-${{ github.ref_name }}
+          path: |
+            .gradle/caches
+            .gradle/wrapper
+      - run: sh ./ci/test-server.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: server-test-results
+          path: server/build/test-results/test/**/TEST-*.xml
+          retention-days: 7
+
+  test_client:
+    runs-on: ubuntu-latest
+    container: node:20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          key: node-${{ github.ref_name }}
+          path: client/node_modules
+      - run: sh ./ci/test-client.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: client-test-results
+          path: client/test-results/**/junit*.xml
+          retention-days: 7

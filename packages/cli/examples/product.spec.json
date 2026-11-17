@@ -1,0 +1,11 @@
+{
+  "basicData": {
+    "name": "MyProduct",
+    "version": "0.0.0",
+    "languages": ["en"],
+    "SRID": "4326"
+  },
+  "dataModel": { "cells": [] },
+  "features": ["Foo", "Bar"],
+  "statics": []
+}

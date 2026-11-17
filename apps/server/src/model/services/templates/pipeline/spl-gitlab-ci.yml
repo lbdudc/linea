@@ -1,0 +1,182 @@
+#
+# CI of an SPL: what a merge request does to the products that already exist.
+#
+#   validate  the feature model against the real products (their .linea/spec.json is fetched from
+#             the repositories listed in products.json); the version of the line is raised when
+#             features are removed
+#   select    the products the change can break (the ones that have a feature the changed code tests)
+#   products  a child pipeline: each selected product is derived from the proposed code, checked for
+#             annotations left in it, derived twice to see that it is deterministic, and tested
+#   metrics   the selected products are derived from the proposed code and from the target branch and
+#             measured (cyclomatic complexity); what each touched feature brings is measured by deriving
+#             a product with and without it. The result is a note on the merge request and the Code
+#             Quality widget.
+#   test      GitLab's security scans (SAST, secret detection, dependency scanning)
+#
+# A scheduled pipeline (or one started by hand) does more:
+#   - every product of the SPL is derived and checked, and what is committed in each product is compared
+#     with what the line generates (drift: someone edited the generated code by hand)
+#   - a pairwise sample of configurations (every pair of features together once) is derived and tested,
+#     to find interactions between features that no real product has
+#
+# Pushing a tag asks LINEA to generate again every product of the SPL (release), once LINEA_URL and LINEA_TOKEN are
+# set: without them there is no release job, and a tag runs nothing.
+#
+# Needs these CI/CD variables:
+#   LINEA_CI_TOKEN    a token that can read the product repositories and the registry of packages, and
+#                     comment on merge requests
+#   LINEA_CI_PACKAGE  where linea-ci is installed from (npm name, git URL or tarball)
+#   LINEA_URL, LINEA_TOKEN   only for releases: the address of LINEA and a session token of a user who
+#                     can generate the products
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_COMMIT_TAG'
+
+variables:
+  LINEA_CI_PACKAGE: "git+https://$CI_SERVER_HOST/linea/linea-ci.git"
+  LINEA_CI_MAX_PRODUCTS: "5"
+  LINEA_CI_MAX_SAMPLES: "30"
+  LINEA_CI_MAX_CCN: "15"
+  LINEA_CI_SPECS: ".linea-ci/specs"
+
+stages:
+  - validate
+  - select
+  - products
+  - metrics
+  - test
+  - release
+
+.linea-ci:
+  image: node:22
+  before_script:
+    # a package kept in this GitLab (a git URL on its host) is cloned with the token of the job
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/".insteadOf "https://${CI_SERVER_HOST}/"
+    - npm install --global "$LINEA_CI_PACKAGE"
+
+.not-on-tags:
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    - when: on_success
+
+specs:
+  extends: [.linea-ci, .not-on-tags]
+  stage: validate
+  script:
+    - linea-ci fetch-specs --line . --out "$LINEA_CI_SPECS"
+    - linea-ci validate-specs --line . "$LINEA_CI_SPECS"
+  artifacts:
+    paths:
+      - .linea-ci/specs/
+    expire_in: 1 week
+
+version:
+  extends: .linea-ci
+  stage: validate
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - git worktree add ../base "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
+    - linea-ci check-version --line . --base-line ../base
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+select:
+  extends: [.linea-ci, .not-on-tags]
+  stage: select
+  needs: [specs]
+  script:
+    - |
+      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+        RANGE="--base $CI_MERGE_REQUEST_DIFF_BASE_SHA --head $CI_COMMIT_SHA --max $LINEA_CI_MAX_PRODUCTS"
+      else
+        # nightly or by hand: the feature model is touched as far as the selection goes, so every product is rebuilt and compared with its repository
+        RANGE="--changed src/platform/model.uvl --with-drift"
+      fi
+      linea-ci select-products --line . --specs "$LINEA_CI_SPECS" $RANGE --pipeline-out .linea-ci/child.yml | tee .linea-ci/selection.json
+  artifacts:
+    paths:
+      - .linea-ci/
+    expire_in: 1 week
+
+products:
+  stage: products
+  needs: [select]
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+  trigger:
+    include:
+      - artifact: .linea-ci/child.yml
+        job: select
+    strategy: depend
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    - when: on_success
+
+sample:
+  extends: .linea-ci
+  stage: select
+  needs: [specs]
+  script:
+    - linea-ci sample-configs --line . --specs "$LINEA_CI_SPECS" --out .linea-ci/samples --max "$LINEA_CI_MAX_SAMPLES" --pipeline-out .linea-ci/samples-child.yml
+  artifacts:
+    paths:
+      - .linea-ci/
+    expire_in: 1 week
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "web"'
+
+samples:
+  stage: products
+  needs: [sample]
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+  trigger:
+    include:
+      - artifact: .linea-ci/samples-child.yml
+        job: sample
+    strategy: depend
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_PIPELINE_SOURCE == "web"'
+
+metrics:
+  extends: .linea-ci
+  stage: metrics
+  needs: [select]
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - apt-get update -qq && apt-get install -y -qq python3-pip > /dev/null && pip install --quiet --break-system-packages lizard
+    - git worktree add ../base "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
+    - linea-ci mr-metrics --line . --specs "$LINEA_CI_SPECS" --selection .linea-ci/selection.json --base-line ../base --max-ccn "$LINEA_CI_MAX_CCN" --out .linea-ci/metrics
+    - linea-ci mr-note .linea-ci/metrics/metrics.md || echo "The note could not be posted (LINEA_CI_TOKEN needs the api scope)."
+  artifacts:
+    when: always
+    paths:
+      - .linea-ci/metrics/metrics.md
+      - .linea-ci/metrics/metrics.json
+    reports:
+      codequality: .linea-ci/metrics/gl-code-quality-report.json
+    expire_in: 1 week
+  allow_failure: true
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+release:
+  extends: .linea-ci
+  stage: release
+  script:
+    - linea-ci release-products --linea-url "$LINEA_URL" --line "$CI_PROJECT_NAME"
+  rules:
+    - if: '$CI_COMMIT_TAG && $LINEA_TOKEN'

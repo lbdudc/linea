@@ -1,0 +1,6 @@
+{
+  "name": "datamodel",
+  "version": "2.1.0",
+  "description": "Entities made of property and relationship fields",
+  "requires": { "file:metamodels/common": "^1.0.0" }
+}

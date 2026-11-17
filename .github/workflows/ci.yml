@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # the plugins and the metamodels live in their own repositories; the tests that need them find them here
+      PLUGINS_DIR: ${{ github.workspace }}/_deps/linea-plugins
+      LINEA_METAMODELS_DIR: ${{ github.workspace }}/_deps/linea-metamodels
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: lbdudc/linea-plugins
+          path: _deps/linea-plugins
+      - uses: actions/checkout@v4
+        with:
+          repository: lbdudc/linea-metamodels
+          path: _deps/linea-metamodels
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: oven-sh/setup-bun@v2
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck
+      # core, git, ci, cli (with bun), server and client, with the plugins and the metamodels in place
+      - run: npm test
+      # git 2.38+ (merge-tree --write-tree) is what the local git host needs; ubuntu-latest has it
+
+  docker:
+    # the images build (not pushed) on every change, with the plugins and the metamodels in
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: lbdudc/linea-plugins
+          path: _deps/linea-plugins
+      - uses: actions/checkout@v4
+        with:
+          repository: lbdudc/linea-metamodels
+          path: _deps/linea-metamodels
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          build-contexts: |
+            plugins=_deps/linea-plugins
+            metamodels=_deps/linea-metamodels
+          push: false
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,scope=server,mode=max
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/client/Dockerfile
+          build-contexts: |
+            plugins=_deps/linea-plugins
+          push: false
+          cache-from: type=gha,scope=client
+          cache-to: type=gha,scope=client,mode=max

@@ -1,0 +1,6 @@
+export { FEATURE_METAMODEL, FEATURE_MODEL_GRAMMAR, FEATURE_SELECTION_GRAMMAR, withFeatureMetamodel } from './constants.js'
+export { configure } from './configure.js'
+export type { Configuration, ConfigurationModel } from './configure.js'
+export { selectionText, defaultSelection, checkSelections } from './selection.js'
+export type { SelectionVerdict } from './selection.js'
+export { bangoName, rootFeatureName } from './names.js'

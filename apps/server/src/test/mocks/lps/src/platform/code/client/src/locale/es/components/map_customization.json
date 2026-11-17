@@ -1,0 +1,62 @@
+###< if (data.basicData.languages.find(lang => lang=='es')) { >###
+###< if (feature.MV_MapCustomization) { >###
+{
+  "map_customization": {
+    "mapCustomizationTitle": "Customización de mapas",
+    "cancel": "Cancelar",
+    "accept": "Aceptar",
+    "delete": "Eliminar",
+    "map-list":{
+        "no-items":"No hay mapas"
+    },
+    "get-maps":{
+        "error":{
+            "title":"Error",
+            "text":"Error obteniendo mapas"
+        }
+    },
+    "download":{
+        "tooltip": "Cargar mapa personalizado",
+        "error":{
+            "title":"Error",
+            "text":"Error importando mapa"
+        }
+    },
+    "upload":{
+        "tooltip": "Guardar mapa personalizado",
+        "dialog": {
+            "title": "Nombre del mapa",
+            "rule": "Se debe proporcionar un nombre para el mapa"
+        },
+        "success":{
+            "title":"Operación exitosa",
+            "text":"El mapa ha sido exportado con éxito"
+        },
+        "error":{
+            "title":"Error",
+            "text":"Error exportando mapa"
+        },
+        "overwrite": {
+            "title": "El mapa ya existe",
+            "text": "Ya existe un mapa con este nombre. ¿Está seguro de que desea sobrescribir este mapa?"
+        }
+    },
+    "delete": {
+        "tooltip": "Eliminar mapa personalizado actual",
+        "dialog": {
+            "title": "Eliminar mapa",
+            "text": "¿Estás seguro de quere eliminar este mapa personalizado?"
+        },
+        "success": {
+            "title": "Operación exitosa",
+            "text": "El mapa ha sido eliminado con éxito"
+        },
+        "error": {
+            "title": "Error",
+            "text": "Error eliminando mapa"
+        }
+    }
+  }
+}
+###< } >###
+###< } >###

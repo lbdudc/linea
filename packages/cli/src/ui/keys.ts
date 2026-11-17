@@ -1,0 +1,18 @@
+export const KEYS_HELP = [
+  'Keyboard shortcuts:',
+  '  /          the commands, the most useful for where you are first',
+  '  ?          this list',
+  '  Enter      run the command, or take the highlighted suggestion',
+  '  Tab        complete the command or its argument',
+  '  ↑ / ↓      move through the suggestions · recall earlier commands when there are none',
+  '  Esc        clear the line · give up an analysis that is running',
+  '  Ctrl+U     clear the current line',
+  '  Ctrl+W     delete the previous word',
+  '  Ctrl+L     clear the screen',
+  '  Ctrl+B     hide or show the list of SPLs, modules and metamodels (click one to select it; drag its edge to resize)',
+  '  Ctrl+E     use the keys on the list: ↑ ↓ move, Enter selects, ← → or Space fold a group, Esc comes back',
+  '  Ctrl+O     hide or show the code panel (the files of what you picked)',
+  '  Ctrl+F     search the files of the code panel (names, and the text of what is here) · Esc leaves it',
+  '  Ctrl+K     show this list',
+  '  Ctrl+C     quit',
+].join('\n');

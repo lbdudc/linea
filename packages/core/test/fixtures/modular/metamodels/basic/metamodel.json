@@ -1,0 +1,6 @@
+{
+  "name": "basic",
+  "version": "1.0.0",
+  "description": "Name, SRID, languages and database of the product",
+  "requires": { "file:metamodels/common": "^1.0.0" }
+}

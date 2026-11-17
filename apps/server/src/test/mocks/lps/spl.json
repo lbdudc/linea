@@ -1,0 +1,9 @@
+{
+  "name": "GEMA",
+  "version": "1.0.0",
+  "kind": "plain",
+  "metamodels": {
+    "gitlab:linea/metamodels/featuremodel": "^1.0.0"
+  },
+  "modules": {}
+}

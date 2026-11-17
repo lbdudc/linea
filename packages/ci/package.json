@@ -1,0 +1,40 @@
+{
+  "name": "@lbdudc/linea-ci",
+  "version": "0.1.0",
+  "description": "CI steps for LINEA SPLs and the products they generate: leftovers, spec validation, derivation, change-driven product selection. Lines made of modules are composed from the registry of the git host.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "linea-ci": "./src/bin.mjs"
+  },
+  "files": [
+    "src"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@lbdudc/linea-core": "^0.1.1",
+    "@lbdudc/linea-git": "^0.1.0",
+    "comlink": "^4.4.2",
+    "langium": "^4.4.0",
+    "@lbdudc/bango": "^0.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lbdudc/linea.git",
+    "directory": "packages/ci"
+  },
+  "author": "Laboratorio de Bases de Datos (LBD) - Universidade da Coruña",
+  "homepage": "https://github.com/lbdudc/linea/tree/main/packages/ci",
+  "bugs": {
+    "url": "https://github.com/lbdudc/linea/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

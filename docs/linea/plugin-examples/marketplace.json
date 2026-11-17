@@ -1,0 +1,6 @@
+{
+  "plugins": [
+    { "id": "hello-plugin", "path": "hello-plugin" },
+    { "id": "echo-plugin", "path": "echo-plugin" }
+  ]
+}

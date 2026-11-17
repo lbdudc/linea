@@ -1,0 +1,69 @@
+###<@ return data.basicData.languages
+.filter(function(lang) { return lang !== "es" && lang !== "gl"; })
+.map(function(lang) {
+return {
+fileName: lang + '/components/map_customization.json',
+context: lang
+};
+});
+>###
+###< if (feature.MV_MapCustomization) { >###
+{
+  "map_customization": {
+    "mapCustomizationTitle": "Map customization",
+    "cancel": "Cancel",
+    "accept": "Accept",
+    "delete": "Delete",
+    "map-list":{
+        "no-items":"No maps"
+    },
+    "get-maps":{
+        "error":{
+            "title":"Error",
+            "text":"Error getting maps"
+        }
+    },
+    "download":{
+        "tooltip": "Load custom map",
+        "error":{
+            "title":"Error",
+            "text":"Error importing map"
+        }
+    },
+    "upload":{
+        "tooltip": "Save custom map",
+        "dialog": {
+            "title": "Map name",
+            "rule": "A map name must be provided"
+        },
+        "success":{
+            "title":"Successful operation",
+            "text":"The map has been exported successfully"
+        },
+        "error":{
+            "title":"Error",
+            "text":"Error exporting map"
+        },
+        "overwrite": {
+            "title": "Map already exists",
+            "text": "A map with this name already exists, are you sure you want to overwrite this map?"
+        }
+    },
+    "delete": {
+        "tooltip": "Delete current custom map",
+        "dialog": {
+            "title": "Delete map",
+            "text": "Are you sure you want to delete this custom map?"
+        },
+        "success": {
+            "title": "Successful operation",
+            "text": "The map has been deleted successfully"
+        },
+        "error": {
+            "title": "Error",
+            "text": "Error deleting map"
+        }
+    }
+  }
+}
+###< } >###

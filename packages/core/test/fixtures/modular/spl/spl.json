@@ -1,0 +1,11 @@
+{
+  "name": "gis-apps",
+  "version": "1.0.0",
+  "kind": "modular",
+  "metamodels": {
+    "file:metamodels/featuremodel": "^1.0.0"
+  },
+  "modules": {
+    "file:modules/user-management": "^1.0.0"
+  }
+}

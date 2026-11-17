@@ -1,0 +1,10 @@
+{
+  "name": "core",
+  "version": "1.2.0",
+  "requires": {
+    "metamodels": {
+      "file:metamodels/basic": "^1.0.0",
+      "file:metamodels/featuremodel": "^1.0.0"
+    }
+  }
+}

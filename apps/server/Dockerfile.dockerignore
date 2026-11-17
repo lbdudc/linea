@@ -1,0 +1,18 @@
+**/node_modules
+**/.git
+**/dist
+**/coverage
+**/*.tgz
+**/.env
+**/.env.local
+apps/server/.dev-data*
+apps/server/tmp
+# the client, the end-to-end suite, the CLI and the docs are not the server's (their package.json files are: the lockfile needs them)
+apps/client/src
+apps/client/public
+e2e/lib
+e2e/scenarios
+packages/cli/src
+packages/cli/test
+docs
+.github

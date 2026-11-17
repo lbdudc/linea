@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script>
+      (function () {
+        var stored, token;
+        try { stored = localStorage.getItem('linea-theme'); } catch (e) { stored = null; }
+        document.documentElement.classList.add(stored === 'dark' ? 'dark-theme' : 'light-theme');
+        // the frame of the app is drawn before any script runs, only for a person who has a session (the login page has none)
+        try { token = localStorage.getItem('token'); } catch (e) { token = null; }
+        if (token && location.pathname.indexOf('/login') !== 0) {
+          var root = document.documentElement.classList;
+          root.add('has-shell');
+          try { if (localStorage.getItem('linea-explorer-collapsed') === '1') root.add('shell-rail'); } catch (e) { /* the side panel open */ }
+        }
+      })();
+    </script>
+
+    <title>LINEA</title>
+    <meta name="description" content="LINEA Application">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
+    <link rel="icon" type="image/ico" href="favicon.ico">
+
+    <style>
+      /* the frame of the app while its script loads: the bar, the side panel and a page of ghost rows. It carries its own colours (the
+         ones of the theme), because the stylesheet of the app comes with its script */
+      body { margin: 0; }
+      .boot-shell { --bs-ground: #0f172a; --bs-surface: #131f35; --bs-hover: #1e293b; --bs-line: #334155; --bs-text: #f1f5f9; --bs-accent: #60a5fa;
+        display: none; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bs-ground); }
+      .light-theme .boot-shell { --bs-ground: #f5f7fa; --bs-surface: #ffffff; --bs-hover: #eef2f7; --bs-line: #e2e8f0; --bs-text: #1e293b; --bs-accent: #222261; }
+      .has-shell .boot-shell { display: flex; }
+      .boot-shell__bar { display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 12px; flex-shrink: 0; box-sizing: border-box;
+        background: var(--bs-surface); border-bottom: 1px solid var(--bs-line); }
+      .boot-shell__logo { width: 28px; height: 28px; background: var(--bs-accent);
+        -webkit-mask: url('/icon-white.png') center / contain no-repeat; mask: url('/icon-white.png') center / contain no-repeat; }
+      .boot-shell__name { font: 700 1.05rem/1 'IBM Plex Sans', system-ui, sans-serif; letter-spacing: 0.08em; color: var(--bs-text); }
+      .boot-shell__body { display: flex; flex: 1; min-height: 0; }
+      .boot-shell__side { width: 280px; flex-shrink: 0; background: var(--bs-surface); border-right: 1px solid var(--bs-line); }
+      .shell-rail .boot-shell__side { width: 40px; }
+      .boot-shell__main { flex: 1; min-width: 0; padding: 22px 20px; }
+      .boot-shell__bone { display: block; border-radius: 6px; background: var(--bs-hover); animation: boot-pulse 1.4s ease-in-out infinite; }
+      .boot-shell__bar .boot-shell__bone { height: 22px; }
+      .boot-shell__row { height: 40px; margin-top: 8px; }
+      @keyframes boot-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+      @media (max-width: 1100px) { .boot-shell__side { width: 40px; } }
+      @media (max-width: 900px) { .boot-shell__nav { display: none !important; } }
+      @media (prefers-reduced-motion: reduce) { .boot-shell__bone { animation: none; } }
+    </style>
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- the fonts do not hold the first paint back: the page is drawn in the system font and changes when they arrive (display=swap) -->
+    <link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap"></noscript>
+  </head>
+  <body>
+    <div id="app">
+      <div class="boot-shell" aria-hidden="true">
+        <div class="boot-shell__bar">
+          <span class="boot-shell__logo"></span>
+          <span class="boot-shell__name">LINEA</span>
+          <span class="boot-shell__nav" style="display: flex; gap: 10px; margin-left: 18px">
+            <span class="boot-shell__bone" style="width: 78px"></span>
+            <span class="boot-shell__bone" style="width: 92px"></span>
+            <span class="boot-shell__bone" style="width: 84px"></span>
+            <span class="boot-shell__bone" style="width: 104px"></span>
+          </span>
+        </div>
+        <div class="boot-shell__body">
+          <div class="boot-shell__side"></div>
+          <div class="boot-shell__main">
+            <span class="boot-shell__bone" style="width: 220px; height: 28px"></span>
+            <span class="boot-shell__bone boot-shell__row" style="margin-top: 22px"></span>
+            <span class="boot-shell__bone boot-shell__row"></span>
+            <span class="boot-shell__bone boot-shell__row"></span>
+            <span class="boot-shell__bone boot-shell__row"></span>
+            <span class="boot-shell__bone boot-shell__row"></span>
+            <span class="boot-shell__bone boot-shell__row"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/entry.js"></script>
+  </body>
+</html>

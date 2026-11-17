@@ -1,0 +1,296 @@
+/* =====================================================================
+   LINEA — tokens de diseño (tema oscuro y tema claro)
+   =====================================================================
+
+   Fuente de verdad del color de TODO el front: LINEA y linea-agents.
+   Salido de los lienzos de diseño (design tool), septiembre 2026.
+
+   Cómo se usa
+   -----------
+   1. Importa este fichero UNA vez, lo primero de todo.
+   2. Pon la clase de tema en el elemento raíz (<html> o el contenedor
+      de la app):  class="dark-theme"  |  class="light-theme"
+   3. En el resto del CSS NO escribas nunca un color literal: usa var(--…).
+
+   Regla dura: si necesitas un color que no está aquí, no lo inventes en
+   el componente — añádelo a este fichero con sus DOS valores (oscuro y
+   claro) y documéntalo en GUIA-FRONT-PRIMEVUE.md.
+
+   Los nombres --p-* son los de PrimeVue 4 para que el preset se alimente
+   de aquí sin traducir. Los que PrimeVue no define (marcados "propio" en
+   la guía) son extensiones nuestras y siguen la misma convención.
+   ===================================================================== */
+
+/* ---------- TEMA OSCURO (por defecto) ----------
+
+   Va también en `:root` a propósito. Si las variables vivieran SOLO dentro de
+   `.dark-theme`/`.light-theme`, cualquier instante en que la raíz no tenga
+   todavía la clase deja a `var(--p-surface-ground)` sin valor: la declaración
+   entera se invalida, el fondo cae a transparente (blanco del navegador) y el
+   texto a negro. Eso es exactamente el destello blanco al recargar en tema
+   oscuro. Con el respaldo en `:root` el peor caso es "sale en oscuro y cambia",
+   no "sale roto".
+
+   El respaldo NO sustituye al script de arranque del <head> (ver §2 de la
+   guía): ese es el que elige el tema correcto antes del primer pintado. */
+:root,
+.dark-theme {
+  color-scheme: dark;
+
+  /* superficies */
+  --p-surface-ground: #0f172a;          /* fondo de página */
+  --p-content-background: #131f35;      /* tarjetas, paneles, barras */
+  --p-content-hover-background: #1e293b;/* hover de fila / superficie elevada */
+  --p-content-border-color: #334155;    /* todos los bordes y reglas */
+
+  /* rampa de texto, de más a menos contraste */
+  --p-text-color: #f1f5f9;              /* titulares y dato principal */
+  --p-text-secondary-color: #cbd5e1;    /* cuerpo */
+  --p-text-muted-color: #94a3b8;        /* secundario, metadatos */
+  --p-text-dim-color: #7d90a8;          /* rótulos en versalitas */
+  --p-text-faint-color: #475569;        /* separadores tipográficos, "·" */
+
+  /* acento del producto */
+  --p-primary-color: #60a5fa;
+  --p-primary-hover-color: #93c5fd;
+  --p-primary-contrast-color: #ffffff;  /* texto sobre relleno sólido */
+  --p-primary-on-light-color: #222261;  /* icono/texto de marca sobre chip blanco, fijo en los dos temas */
+  --p-primary-on-light-background: #ffffff;  /* fondo del chip blanco de marca, fijo en los dos temas */
+  --p-button-primary-background: #2563eb;
+
+  --brand-bar-from: #222261;
+  --brand-bar-to: #2563eb;
+  --brand-bar-veil: rgba(255, 255, 255, 0.1);
+  --brand-bar-veil-strong: rgba(255, 255, 255, 0.18);
+  --p-highlight-background: rgba(96, 165, 250, 0.16);
+  --p-highlight-strong: rgba(96, 165, 250, 0.2);
+  --p-highlight-soft: rgba(96, 165, 250, 0.07);
+
+  --gitlab-color: #ff5722;
+  --gitlab-color-text: #ff5722;
+  --gitlab-color-solid: #bf360c;
+
+  /* formato del feature model (UVL/XML) — fijo, no cambia con el tema */
+  --p-format-uvl-color: #5c6bc0;
+  --p-format-xml-color: #009688;
+  --p-format-xml-solid: #00796b;
+
+  /* acento del wizard de análisis IA (feature-model) y azul "leaf" de UVLAnalysis — fijos, no cambian con el tema */
+  --p-accent-color: #60a5fa;
+  --p-leaf-color: #1b5e20;
+
+  /* acento de linea-agents (violeta). En LINEA no se usa. */
+  --p-agent-color: #a78bfa;
+  --p-agent-hover-color: #c4b5fd;
+  --p-agent-background: #7c3aed;
+  --p-agent-highlight: rgba(167, 139, 250, 0.16);
+  --p-agent-highlight-soft: rgba(167, 139, 250, 0.09);
+
+  /* estado — RESERVADOS, nunca como color de serie */
+
+  --status-on-solid: #0f172a;
+  --status-neutral-solid: #94a3b8;
+
+  --status-ok: #34d399;
+  --status-ok-strong: #6ee7b7;
+  --status-ok-solid: #34d399;
+  --status-ok-soft: rgba(52, 211, 153, 0.13);
+  --status-ok-border: rgba(52, 211, 153, 0.3);
+  --status-warn: #fbbf24;
+  --status-warn-solid: #fbbf24;
+  --status-warn-soft: rgba(251, 191, 36, 0.15);
+  --status-warn-border: rgba(251, 191, 36, 0.35);
+  --status-bad: #fb7185;
+  --status-bad-strong: #fda4af;
+  --status-bad-solid: #fb7185;
+  --status-bad-soft: rgba(251, 113, 133, 0.13);
+  --status-bad-border: rgba(251, 113, 133, 0.34);
+  --status-serious: #fb923c;
+  --status-serious-border: rgba(251, 146, 60, 0.45);
+
+  /* fill of bars, dots and gauges: the same hue as the status, a little livelier than the text */
+  --viz-ok: #34d399;
+  --viz-warn: #fbbf24;
+  --viz-serious: #fb923c;
+  --viz-bad: #fb7185;
+  --viz-neutral: #475569;
+  --seq-1: #a5b4fc;
+  --seq-2: #818cf8;
+  --seq-3: #6366f1;
+  --seq-4: #4338ca;
+  --viz-track: rgba(148, 163, 184, 0.14);
+  --viz-grid: rgba(148, 163, 184, 0.16);
+
+  /* gráficas — paleta categórica, en ESTE orden, sin ciclar */
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-1-soft: rgba(57, 135, 229, 0.16);
+  --chart-3-soft: rgba(25, 158, 112, 0.16);
+  --chart-3-text: #6ee7b7;
+
+  /* diff */
+  --diff-add-text: #86efac;
+  --diff-del-text: #fca5a5;
+
+  /* código (Monaco, bloques <pre>, logs) */
+  --code-bg: #0b1324;
+  --code-text: #cbd5e1;
+  --code-key: #f59e0b;
+  --code-struct: #60a5fa;
+  --code-str: #22c55e;
+  --code-comment: #64748b;
+  --code-op: #94a3b8;
+
+  /* varios */
+  --overlay-shadow: rgba(0, 0, 0, 0.5);
+  --hover-veil: rgba(255, 255, 255, 0.04);
+  --loading-veil: rgba(19, 31, 53, 0.7); /* velo sobre --p-content-background al cargar */
+  --panel-veil: rgba(0, 0, 0, 0.55);
+}
+
+/* ---------- TEMA CLARO ---------- */
+.light-theme {
+  color-scheme: light;
+
+  --p-surface-ground: #f5f7fa;
+  --p-content-background: #ffffff;
+  --p-content-hover-background: #eef2f7;
+  --p-content-border-color: #e2e8f0;
+
+  --p-text-color: #1e293b;
+  --p-text-secondary-color: #334155;
+  --p-text-muted-color: #475569;
+  --p-text-dim-color: #5d6b7f;
+  --p-text-faint-color: #94a3b8;
+
+  /* en claro el acento es el índigo de marca */
+  --p-primary-color: #222261;
+  --p-primary-hover-color: #2563eb;
+  --p-primary-contrast-color: #ffffff;
+  --p-primary-on-light-color: #222261;
+  --p-primary-on-light-background: #ffffff;  /* fondo del chip blanco de marca, fijo en los dos temas */
+  --p-button-primary-background: #2563eb;
+
+  --brand-bar-from: #222261;
+  --brand-bar-to: #2563eb;
+  --brand-bar-veil: rgba(255, 255, 255, 0.1);
+  --brand-bar-veil-strong: rgba(255, 255, 255, 0.18);
+  --p-highlight-background: rgba(34, 34, 97, 0.09);
+  --p-highlight-strong: rgba(34, 34, 97, 0.13);
+  --p-highlight-soft: rgba(34, 34, 97, 0.045);
+
+  --gitlab-color: #ff5722;
+  --gitlab-color-text: #bf360c;
+  --gitlab-color-solid: #bf360c;
+
+  --p-format-uvl-color: #5c6bc0;
+  --p-format-xml-color: #009688;
+  --p-format-xml-solid: #00796b;
+
+  --p-accent-color: #60a5fa;
+  --p-leaf-color: #1b5e20;
+
+  --p-agent-color: #6d28d9;
+  --p-agent-hover-color: #7c3aed;
+  --p-agent-background: #7c3aed;
+  --p-agent-highlight: rgba(109, 40, 217, 0.1);
+  --p-agent-highlight-soft: rgba(109, 40, 217, 0.05);
+
+  --status-on-solid: #ffffff;
+  --status-neutral-solid: #475569;
+
+  --status-ok: #047857;
+  --status-ok-strong: #047857;
+  --status-ok-solid: #047857;
+  --status-ok-soft: rgba(4, 120, 87, 0.09);
+  --status-ok-border: rgba(4, 120, 87, 0.26);
+  --status-warn: #b45309;
+  --status-warn-solid: #b45309;
+  --status-warn-soft: rgba(180, 83, 9, 0.1);
+  --status-warn-border: rgba(180, 83, 9, 0.28);
+  --status-bad: #be123c;
+  --status-bad-strong: #be123c;
+  --status-bad-solid: #be123c;
+  --status-bad-soft: rgba(190, 18, 60, 0.07);
+  --status-bad-border: rgba(190, 18, 60, 0.28);
+  --status-serious: #c2410c;
+  --status-serious-border: rgba(194, 65, 12, 0.4);
+
+  --viz-ok: #10b981;
+  --viz-warn: #f5a524;
+  --viz-serious: #f97316;
+  --viz-bad: #f43f5e;
+  --viz-neutral: #94a3b8;
+  --seq-1: #4338ca;
+  --seq-2: #6366f1;
+  --seq-3: #a5b4fc;
+  --seq-4: #d6dcfd;
+  --viz-track: rgba(100, 116, 139, 0.12);
+  --viz-grid: rgba(100, 116, 139, 0.18);
+
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-1-soft: rgba(42, 120, 214, 0.12);
+  --chart-3-soft: rgba(27, 175, 122, 0.16);
+  --chart-3-text: #0f766e;
+
+  --diff-add-text: #15803d;
+  --diff-del-text: #b91c1c;
+
+  --code-bg: #f8fafc;
+  --code-text: #334155;
+  --code-key: #b45309;
+  --code-struct: #1d4ed8;
+  --code-str: #15803d;
+  --code-comment: #94a3b8;
+  --code-op: #64748b;
+
+  --overlay-shadow: rgba(15, 23, 42, 0.16);
+  --hover-veil: rgba(15, 23, 42, 0.04);
+  --loading-veil: rgba(255, 255, 255, 0.7);
+  --panel-veil: rgba(15, 23, 42, 0.38);
+}
+
+/* ---------- BASE ----------
+   Both themes paint the background explicitly: never a transparent one inherited from the browser. */
+/* One text family and one monospaced family for the whole application. */
+:root {
+  --font-sans: "IBM Plex Sans", system-ui, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html, body {
+  margin: 0;
+  background: var(--p-surface-ground);
+  color: var(--p-text-color);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Rótulo de sección en versalitas: la etiqueta que separa bloques. */
+.rotulo {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--p-text-dim-color);
+}
+
+/* Cifra de titular / KPI. */
+.cifra {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  line-height: 1;
+}
+
+/* Identificadores, rutas, ramas, SHAs, versiones: siempre monoespaciada. */
+.ident {
+  font-family: var(--font-mono);
+}

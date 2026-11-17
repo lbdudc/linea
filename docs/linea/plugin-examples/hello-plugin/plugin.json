@@ -1,0 +1,14 @@
+{
+  "id": "hello-plugin",
+  "name": { "en": "Hello", "es": "Hola", "gl": "Ola" },
+  "description": { "en": "An in-process example: a route, a page, a feature-model panel and an event listener.", "es": "Un ejemplo en proceso: una ruta, una página, un panel del modelo de variabilidad y un oyente de eventos.", "gl": "Un exemplo en proceso: unha ruta, unha páxina, un panel do modelo de variabilidade e un oínte de eventos." },
+  "icon": "pi-sparkles",
+  "version": "1.0.0",
+  "requires": { "linea": ">=0.1.0", "hostApi": "^1.0.0" },
+  "server": "server/index.js",
+  "client": "client/index.js",
+  "settings": {
+    "greeting": { "type": "string", "label": "Greeting", "default": "Hello", "env": "HELLO_GREETING", "public": true },
+    "shout": { "type": "boolean", "label": "Shout", "default": false }
+  }
+}

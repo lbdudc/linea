@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LINEA plugin.json",
+  "type": "object",
+  "required": ["id", "name", "version"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "not": { "enum": ["enabled", "config.yml", "settings", "install", "enable", "disable"] } },
+    "name": { "$ref": "#/$defs/label" },
+    "description": { "$ref": "#/$defs/label" },
+    "icon": { "type": "string" },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+" },
+    "requires": {
+      "type": "object",
+      "properties": {
+        "linea": { "type": "string" },
+        "hostApi": { "type": "string" },
+        "gitHosts": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "server": { "type": "string", "description": "Path of the in-process entry, inside the plugin's folder" },
+    "client": { "type": "string", "description": "Path of the web entry (the build reads client/index.js)" },
+    "serviceKey": { "type": "string", "description": "Name of a setting of type secret" },
+    "remote": {
+      "type": "object",
+      "properties": {
+        "baseUrl": { "type": "string" },
+        "health": { "type": "string" },
+        "events": { "type": "string" },
+        "web": { "type": "string" }
+      },
+      "dependentRequired": { "health": ["baseUrl"] },
+      "additionalProperties": false
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": { "enum": ["string", "url", "number", "boolean", "enum", "list", "secret"] },
+          "label": { "type": "string" },
+          "description": { "type": "string" },
+          "default": {},
+          "env": { "type": "string" },
+          "required": { "type": "boolean" },
+          "public": { "type": "boolean" },
+          "options": { "type": "array" },
+          "min": { "type": "number" },
+          "max": { "type": "number" },
+          "optionsFrom": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "label": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "object", "additionalProperties": { "type": "string", "minLength": 1 } }
+      ]
+    }
+  }
+}

@@ -1,0 +1,172 @@
+services:
+  mongo:
+    image: mongo:8.2
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    networks:
+      - linea-network
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
+
+  mongo-init-replica:
+    image: mongo:8.2
+    depends_on: [mongo]
+    entrypoint: >
+      bash -c "
+      until mongosh --host mongo --eval 'db.runCommand({ ping: 1 })'; do sleep 2; done;
+      mongosh --host mongo /scripts/initiate-replica-set.js
+      "
+    volumes:
+      - ./initiate-replica-set.js:/scripts/initiate-replica-set.js
+    networks:
+      - linea-network
+    restart: "no"
+
+  server:
+    # the published image; `docker compose up --build` builds it from this checkout instead (with the plugins and the metamodels of
+    # the repositories next to it: lbdudc/linea-plugins, lbdudc/linea-metamodels)
+    image: ghcr.io/lbdudc/linea-server:${LINEA_VERSION:-latest}
+    build:
+      context: ..
+      dockerfile: apps/server/Dockerfile
+      additional_contexts:
+        plugins: ${LINEA_PLUGINS_SRC:-../../linea-plugins}
+        metamodels: ${LINEA_METAMODELS_SRC:-../../linea-metamodels}
+    env_file:
+      # Base env file (tracked in git — GitLab OAuth, JWT key, Mongo).
+      - ${SERVER_ENV_FILE:-../apps/server/.env.example}
+      # Local overrides (gitignored — put your ANTHROPIC_API_KEY etc. here).
+      # Later entries override earlier ones. required: false so the container
+      # boots even when the file doesn't exist yet.
+      - path: ../apps/server/.env.local
+        required: false
+    ports:
+      - "${SERVER_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      # signs the sessions: set your own in .env (the quickstart's .env.example has one for trying it out)
+      JWT_SIGN_KEY: ${JWT_SIGN_KEY:?set JWT_SIGN_KEY in deploy/.env (cp .env.example .env)}
+      REDIRECT_URI: ${REDIRECT_URI:-http://localhost:${PROXY_PORT:-9000}}
+      mongoUrl: ${MONGO_URL:-mongodb://mongo:27017/splalm?replicaSet=rs0&directConnection=true}
+      # the analytics plugin's service (see docker-compose.plugins.yml)
+      FLAMAPY_API_URL: ${FLAMAPY_API_URL:-http://flamapy-server:8000}
+      # the agents plugin: where its service is (LINEA's server calls it), and the key LINEA and the service share
+      AGENTS_URL: ${AGENTS_URL:-http://host.docker.internal:3001}
+      AGENTS_SERVICE_KEY: ${AGENTS_SERVICE_KEY:-}
+      # the keys of the services that act for people here: `id:secret,...` (the agents plugin's is the same AGENTS_SERVICE_KEY)
+      LINEA_SERVICE_KEYS: ${LINEA_SERVICE_KEYS:-${AGENTS_SERVICE_KEY:+agents-plugin:${AGENTS_SERVICE_KEY}}}
+      # who may install and switch plugins, and see the settings (comma-separated usernames); on the local git host their accounts are
+      # made at start with LINEA_ADMIN_PASSWORD
+      ADMIN_USERS: ${ADMIN_USERS:-}
+      LINEA_ADMIN_PASSWORD: ${LINEA_ADMIN_PASSWORD:-}
+      # the repositories of the local git host (the volume below), served at /git of the address people use
+      LINEA_REPOS_DIR: /data/repos
+      LINEA_GIT_URL: ${LINEA_GIT_URL:-}
+      # the deployment's plugins and their settings: ./config/linea.config.yml is mounted at /config (see linea.config.example.yml)
+      LINEA_CONFIG: ${LINEA_CONFIG:-}
+      # plugins to have on from the first start (comma-separated ids), when nobody has decided about them yet
+      LINEA_PLUGINS: ${LINEA_PLUGINS:-}
+      PUBLIC_SERVER_URL: ${PUBLIC_SERVER_URL:-http://localhost:${PROXY_PORT:-9000}}
+      LINEA_REGISTRY: ${LINEA_REGISTRY:-}
+      # where the feature metamodel, which every SPL has, is published (empty: gitlab:linea/metamodels/featuremodel)
+      LINEA_FEATURE_METAMODEL: ${LINEA_FEATURE_METAMODEL:-}
+      # LINEA_GIT_TRACE=1: one log line per call to the git host (to see where the time of a slow page goes)
+      LINEA_GIT_TRACE: ${LINEA_GIT_TRACE:-}
+      # Optional: comma-separated URLs that get the domain events (signed with EVENT_WEBHOOK_SECRET). Empty: nothing is sent.
+      EVENT_WEBHOOK_URLS: ${EVENT_WEBHOOK_URLS:-}
+      EVENT_WEBHOOK_SECRET: ${EVENT_WEBHOOK_SECRET:-}
+      # GitLab/GitHub push webhooks (the local git host needs neither)
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      GIT_WEBHOOK_SECRET: ${GIT_WEBHOOK_SECRET:-}
+    volumes:
+      # Expose the host Docker socket so the playground runner can spawn containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # linea.config.yml (the deployment's plugins and settings, see linea.config.example.yml)
+      - ${LINEA_CONFIG_DIR:-./config}:/config:ro
+      # the repositories of the local git host
+      - repos-data:/data/repos
+    networks:
+      - linea-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:'+(process.env.port||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      mongo:
+        condition: service_started
+      mongo-init-replica:
+        condition: service_started
+    restart: unless-stopped
+    labels:
+      # what the proxy serves from here: the API, and its websocket
+      - "traefik.enable=true"
+      - "proxy.project=linea"
+      - "traefik.http.services.linea-server.loadbalancer.server.port=3000"
+      - "traefik.http.routers.linea-api.rule=PathPrefix(`/api/`)"
+      - "traefik.http.routers.linea-api.service=linea-server"
+      - "traefik.http.routers.linea-api.middlewares=linea-no-store"
+      # git clone / git push of the local git host
+      - "traefik.http.routers.linea-git.rule=PathPrefix(`/git/`)"
+      - "traefik.http.routers.linea-git.service=linea-server"
+      - "traefik.http.routers.linea-socket.rule=PathPrefix(`/socket.io/`)"
+      - "traefik.http.routers.linea-socket.service=linea-server"
+      - "traefik.http.middlewares.linea-no-store.headers.customresponseheaders.Cache-Control=no-store"
+
+  client:
+    image: ghcr.io/lbdudc/linea-client:${LINEA_VERSION:-latest}
+    build:
+      context: ..
+      dockerfile: apps/client/Dockerfile
+      additional_contexts:
+        plugins: ${LINEA_PLUGINS_SRC:-../../linea-plugins}
+      args:
+        API_URL: ${API_URL-}
+    networks:
+      - linea-network
+    depends_on:
+      - server
+    restart: unless-stopped
+    labels:
+      # everything that is not the API. The page itself is revalidated, so a new build's asset names are picked up at once; what Vite
+      # puts in /assets has the hash of its content in the name, so the browser keeps it for good.
+      - "traefik.enable=true"
+      - "proxy.project=linea"
+      - "traefik.http.services.linea-client.loadbalancer.server.port=4000"
+      - "traefik.http.routers.linea-client.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.linea-client.priority=1"
+      - "traefik.http.routers.linea-client.middlewares=linea-revalidate"
+      - "traefik.http.routers.linea-assets.rule=PathPrefix(`/assets/`)"
+      - "traefik.http.routers.linea-assets.service=linea-client"
+      - "traefik.http.routers.linea-assets.middlewares=linea-immutable"
+      - "traefik.http.middlewares.linea-revalidate.headers.customresponseheaders.Cache-Control=no-cache, must-revalidate"
+      - "traefik.http.middlewares.linea-immutable.headers.customresponseheaders.Cache-Control=public, max-age=31536000, immutable"
+
+  # The only thing exposed: it routes by the labels of the services above (see them), and nothing else. It reads the Docker socket
+  # for that, so it only follows containers that carry `proxy.project=linea`: another project's proxy on this host never routes these.
+  proxy:
+    image: traefik:v3.6
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.constraints=Label(`proxy.project`,`linea`)"
+      - "--entrypoints.web.address=:80"
+      - "--ping=true"
+    ports:
+      - "${PROXY_PORT:-9000}:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - server
+      - client
+    networks:
+      - linea-network
+    restart: unless-stopped
+
+networks:
+  linea-network:
+
+volumes:
+  mongo-data:
+  repos-data:

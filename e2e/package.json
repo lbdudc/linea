@@ -1,0 +1,13 @@
+{
+  "name": "linea-e2e",
+  "private": true,
+  "type": "module",
+  "description": "LINEA in Chrome: the stack is started per configuration (git hosts, plugins) and a browser walks through it",
+  "scripts": {
+    "test": "node run.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.49.1"
+  },
+  "license": "Apache-2.0"
+}

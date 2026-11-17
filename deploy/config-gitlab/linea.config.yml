@@ -1,0 +1,17 @@
+# Production-like deployment with GitLab as the only git host and sign-in (no `local` host, so no local accounts).
+# Use it with: LINEA_CONFIG_DIR=./config-gitlab docker compose ... up -d --build  (and .env.prod for the rest of the production settings)
+# OAuth values come from the environment (server env file), not from here.
+gitHosts:
+  primary: gitlab
+  gitlab:
+    url: ${GITLAB_HOSTNAME:-https://gitlab.com}
+    clientId: ${GITLAB_CLIENT_ID}
+    clientSecret: ${GITLAB_SECRET_ID}
+
+plugins:
+  analytics-plugin:
+    enabled: true
+    settings:
+      url: ${FLAMAPY_API_URL:-http://flamapy-server:8000}
+  agents-plugin:
+    enabled: false

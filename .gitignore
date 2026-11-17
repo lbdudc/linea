@@ -1,0 +1,32 @@
+.DS_Store
+node_modules
+dist
+output
+coverage
+tmp
+*.log
+*.tgz
+
+# local env and settings
+.env
+.env.local
+.env.*.local
+/linea.config.yml
+apps/server/.env
+apps/server/.env.production
+apps/server/.dev-data*/
+apps/server/.data/
+deploy/.env
+deploy/.env.prod
+deploy/config-prod/
+apps/client/public/monaco-workers/
+apps/client/public/bango/
+
+# editors
+.idea
+.vscode
+*.iml
+.claude
+
+# test fixtures that look like env files
+!apps/server/src/test/mocks/**/.env

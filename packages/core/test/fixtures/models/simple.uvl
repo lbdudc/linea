@@ -1,0 +1,15 @@
+features
+	Shop
+		mandatory
+			Catalog
+				alternative
+					GridView
+					ListView
+		optional
+			Payment
+				or
+					CreditCard
+					Cash
+
+constraints
+	CreditCard => Catalog

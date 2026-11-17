@@ -1,0 +1,18 @@
+# Artefactos, no código fuente. Sin esto, `eslint .` los analiza y el recuento
+# de problemas deja de ser un indicador útil.
+#
+# El caso concreto que lo motivó: los tests de derivación dejan un
+# `tmp/<uuid>/` por ejecución que falla antes de su limpieza. Llegaron a
+# acumularse 55 directorios y 40 MB, que aportaban ~47.000 de los 62.175
+# problemas que reportaba el linter — frente a los ~15.600 reales del código.
+# La línea base acordada es "cero errores NUEVOS" sobre ese número, así que un
+# indicador inflado 4× no sirve para nada.
+tmp/
+
+
+# Informes de cobertura.
+coverage/
+
+# Código de ejemplo y plantillas, no fuente: el producto de prueba que se deriva y las plantillas que se copian a las líneas.
+src/test/mocks/
+src/model/services/templates/

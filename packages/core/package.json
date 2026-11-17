@@ -1,0 +1,82 @@
+{
+  "name": "@lbdudc/linea-core",
+  "version": "0.1.1",
+  "description": "Motor autocontenido de Líneas de Producto Software (SPL): feature models, validación de specs y derivación de productos. Funciona 100% offline.",
+  "license": "Apache-2.0",
+  "author": "Laboratorio de Bases de Datos (LBD) - Universidade da Coruña",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./workspace": {
+      "types": "./dist/workspace/index.d.ts",
+      "import": "./dist/workspace/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lbdudc/linea.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/lbdudc/linea/tree/main/packages/core",
+  "keywords": [
+    "spl",
+    "software-product-line",
+    "feature-model",
+    "uvl",
+    "derivation",
+    "linea",
+    "splalm"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/copy-assets.mjs",
+    "prepublishOnly": "npm run build",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "check:consumer": "npm run build && node scripts/check-consumer.mjs",
+    "check:install": "node scripts/check-install.mjs"
+  },
+  "dependencies": {
+    "@lbdudc/flamapy.js": "^1.1.0",
+    "extract-zip": "^2.0.1",
+    "prettier": "^3.9.6",
+    "pyodide": "0.26.2",
+    "semver": "^7.8.5",
+    "spl-js-engine": "git+https://github.com/lbdudc/spl-js-engine.git#3b64b69b74495e3993fb08bee7daa9cf166d49fb"
+  },
+  "devDependencies": {
+    "@lbdudc/bango": "^0.2.0",
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^20.17.0",
+    "@types/semver": "^7.8.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "eslint": "^9.17.0",
+    "globals": "^15.14.0",
+    "langium": "^4.4.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^2.1.8"
+  },
+  "bugs": {
+    "url": "https://github.com/lbdudc/linea/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

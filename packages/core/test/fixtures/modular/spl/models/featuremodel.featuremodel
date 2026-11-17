@@ -1,0 +1,6 @@
+featuremodel GisApps
+feature GisApps {
+  optional {
+    feature Reports
+  }
+}

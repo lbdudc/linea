@@ -1,0 +1,21 @@
+# El repositorio guarda todo con LF. Esta regla fuerza LF también en la copia de
+# trabajo, para que `core.autocrlf=true` en Windows no la llene de CRLF.
+#
+# Por qué importa aquí y no es cosmético: `linea/` ha pasado a ser el sitio de
+# trabajo de la migración a linea-core, con ficheros moviéndose entre dos
+# sistemas operativos. Sin esta regla ya ha pasado dos veces que un fichero se
+# recreara en CRLF partiendo de una copia de trabajo Windows:
+#
+#   - las 9 plantillas de línea copiadas a linea-core, cuyo contenido acaba
+#     commiteado en el repositorio GitLab de cada línea creada (o sea: es
+#     producto, no formato). Un `cmp` entre dos copias de trabajo Windows dio
+#     "idéntico" estando ambas mal. Ver ADR-026.
+#   - `server/.eslintrc.cjs`, al renombrarlo recreándolo en vez de con `git mv`.
+#
+# Regla derivada, y la parte que más vale: cualquier comparación de paridad con
+# este repositorio debe hacerse contra `git cat-file`, NUNCA contra el árbol de
+# trabajo.
+#
+# `text=auto` detecta los binarios y los deja en paz, que es lo que hace falta
+# para los fixtures de `server/src/test/mocks/lps` (.jar, .png, .ico).
+* text=auto eol=lf

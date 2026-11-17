@@ -1,0 +1,5 @@
+# Despliegue local con Docker: git local + GitLab (OAuth from apps/server/.env.local).
+gitHosts:
+  primary: local
+  local:
+    dataDir: /data/repos

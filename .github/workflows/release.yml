@@ -1,0 +1,39 @@
+name: Release
+
+# Packages: every change that should be released carries a changeset (`npm run changeset`). On main, this workflow opens (or updates)
+# a "Version packages" pull request; merging it publishes what changed to npm (@lbdudc/linea-core, -git, -cli, -ci, -plugin-sdk),
+# each with its own version, and tags it.
+
+on:
+  push:
+    branches: [main]
+
+concurrency: release-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write # npm provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - uses: oven-sh/setup-bun@v2
+      - run: npm ci
+      - uses: changesets/action@v1
+        with:
+          version: npm run version
+          publish: npm run release
+          title: "chore: version packages"
+          commit: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"

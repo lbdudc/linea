@@ -1,0 +1,10 @@
+features
+	Shop
+		mandatory
+			Catalog
+		optional
+			Payment
+				or
+					CreditCard
+					Cash
+			Reporting

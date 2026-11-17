@@ -1,0 +1,19 @@
+{
+  // `npm run typecheck` must also cover tests, config files and build scripts,
+  // which the build tsconfig deliberately excludes (rootDir=src, they must never
+  // land in dist/). Hence a second, emit-free project that widens the include.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": ["src", "test", "scripts", "vitest.config.ts", "eslint.config.js"],
+  // `allowJs` above would otherwise pull these into the program:
+  //  - the verbatim template copies (assets shipped to generated lines);
+  //  - the annotated LPS fixture, whose `.js` files carry `/*% ... %*/`
+  //    annotations and are deliberately NOT valid JavaScript until derived.
+  //  - the packages of the modular SPL fixture (grammar scripts and annotated code).
+  "exclude": ["src/line/templates/**", "test/fixtures/lps-min/**", "test/fixtures/modular/**"]
+}

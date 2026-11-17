@@ -1,0 +1,277 @@
+features
+	GEMA_SPL {abstract}
+		mandatory
+			DataManagement
+				mandatory
+					DM_SpatialDatabase
+						mandatory
+							DM_SD_PostGIS
+					DM_GenerationType
+						alternative
+							DM_GT_Identity
+							DM_GT_Sequence
+					DM_DataServer
+						optional
+							DM_DS_Types
+								or
+									DM_DS_Gallery
+									DM_DS_Address
+									DM_DS_GTFS
+					DM_DataInput
+						or
+							DM_DI_DataFeeding
+								or
+									DM_DI_DF_Shapefile
+									DM_DI_DF_Raster
+									DM_DI_DF_CSV
+									DM_DI_DF_Network
+							DM_DI_Digitizing
+								or
+									DM_DI_D_Form
+									DM_DI_D_Map
+					DM_Algorithmics
+						or
+							DM_A_Connectivity
+								or
+									DM_A_C_RouteCalculation
+										or
+											DM_A_C_RC_pgRouting
+											DM_A_C_RC_GraphHopper
+									DM_A_C_NetworkTracing
+									DM_A_C_ConectivityCheck
+							DM_A_Geolocalization
+								or
+									DM_A_G_Batch
+										alternative
+											DM_A_G_Nominatim
+											DM_A_G_GoogleMaps
+									DM_A_G_Documents
+			GraphicalUserInterface
+				optional
+					GUI_Menu
+						mandatory
+							GUI_M_Position
+								alternative
+									GUI_M_Top
+									GUI_M_Left
+							GUI_M_Custom
+					GUI_Forms
+						optional
+							GUI_F_Editable
+							GUI_F_Creatable
+							GUI_F_Removable
+								optional
+									GUI_F_R_ConfirmationAlert
+					GUI_Lists
+						optional
+							GUI_L_Sortable
+							GUI_L_Filterable
+								alternative
+									GUI_L_F_RowFilter
+									GUI_L_F_BasicSearch
+							GUI_L_LocateInMap
+							GUI_L_ViewListAsMap
+							GUI_L_FormLink
+							GUI_L_Export
+					GUI_StaticPages
+						optional
+							GUI_SP_Management
+			MWMSupport
+				optional
+					MWM_TrajectoryAnnotation
+						or
+							MWM_TA_SensorDataCollector
+							MWM_TA_TrajectoryAnnotator
+					MWM_TrajectoryExploitation
+						mandatory
+							MWM_TE_Capabilities
+								or
+									MWM_TE_Realtime
+									MWM_TE_Planning
+									MWM_TE_ActivitiesRecord
+									MWM_TE_VisitsRecord
+									MWM_TE_Statistics
+									MWM_TE_QueryView
+							MWM_TE_Tools
+								or
+									MWM_TE_T_ClientCustomLink
+					MWM_VisitSchedule
+					MWM_VisitType
+						alternative
+							MVM_VT_OnlyDay
+							MVM_VT_WithTime
+					MWM_PersonnelManager
+						or
+							MWM_PM_Employees
+							MWM_PM_Clients
+					MWM_Models {hidden}
+						or
+							MWM_M_Employee
+							MWM_M_PlannedVisit
+							MWM_M_Client
+							MWM_M_Activity
+							MWM_M_VisitConstraint
+					MWM_EmployeeAuthentication
+			MapViewer
+				mandatory
+					MV_MapServer
+						or
+							MV_MS_GeoServer
+							MV_MS_GeoJSON
+								optional
+									MV_MS_GJ_Cached
+									MV_MS_GJ_Paginated
+					MV_Tools
+						mandatory
+							MV_T_Pan
+							MV_T_Zoom
+							MV_T_ZoomWindow
+							MV_T_MeasureControl
+								mandatory
+									MV_T_M_Distance
+									MV_T_M_Line
+									MV_T_M_Polygon
+									MV_T_M_MapElement
+							MV_T_Export
+								optional
+									MV_T_E_SetScale
+									MV_T_E_ShowLegend
+									MV_T_E_DRM
+									MV_T_E_Type
+										or
+											MV_T_E_F_PNG
+											MV_T_E_F_PDF
+											MV_T_E_F_URL
+							MV_T_Filterable
+								or
+									MV_T_F_RowFilter
+									MV_T_F_BasicSearch
+										optional
+											MV_T_F_BS_ByUserGeolocation
+							MV_T_UserGeolocation
+							MV_T_InformationMode
+							MV_T_ViewMapAsList
+							MV_MapCustomization
+					MV_ContextInformation
+						or
+							MV_CI_Map
+							MV_CI_Scale
+							MV_CI_CenterCoordinates
+							MV_CI_Dimensions
+					MV_LayerManagement
+						or
+							MV_LM_BaseLayerSelector
+							MV_LM_Order
+							MV_LM_CenterViewOnLayer
+							MV_LM_HideLayer
+							MV_LM_Opacity
+							MV_LM_Style
+							MV_LM_ExternalLayer
+							MV_LM_StylePreview
+					MV_MapManagement
+						alternative
+							MV_MM_UniqueMapViewer
+								mandatory
+									MV_MM_UMV_MapCenter
+										alternative
+											MV_MM_UMV_MC_BBox
+											MV_MM_UMV_MC_Coordinates
+											MV_MM_UMV_MC_UserPosition
+							MV_MM_MultipleMapViewer
+								optional
+									MV_MM_MMV_MapSelectorInMapViewer
+									MV_MM_MMV_MapSelectorInMenuElement
+					MV_DetailOnClick
+					MV_Clustering
+			UserManagement
+				optional
+					UM_Registration
+						or
+							UM_R_ByAdmin
+							UM_R_Anonymous
+					UM_Authentication
+						optional
+							UM_A_RememberPass
+							UM_A_RecoverPass
+					UM_AccountActivation
+						or
+							UM_AA_ByEmail
+							UM_AA_ByAdmin
+					UM_UpdateEmail
+					UM_UpdatePassword
+						mandatory
+							UM_UP_ByUser
+							UM_UP_ByAdmin
+					UM_UserProfile
+					UM_UserCRUD
+					UM_SecurityType
+						alternative
+							UM_ST_JWT
+					UM_Capabilities
+						optional
+							UM_C_AnonymousUserCanViewEntities
+			Tools
+				optional
+					T_MailSender {hidden}
+					T_Swagger
+					T_Payments
+						or
+							T_P_PayPal
+							T_P_RedSys
+					T_FileUploader {hidden}
+					T_EntitiesInformation {hidden}
+					T_GIS {hidden}
+					T_Quartz
+			Deploy
+				or
+					D_Containers
+						or
+							D_C_Postgres
+							D_C_Geoserver
+							D_C_Nginx
+							D_C_Elastic
+							D_C_Kibana
+							D_C_Kafka
+					D_GitLabRunner
+						optional
+							D_GLR_Unique
+constraints
+	UM_R_ByAdmin => UM_UserCRUD
+	UM_AA_ByAdmin => UM_UserCRUD
+	UM_UP_ByAdmin => UM_UserCRUD
+	UM_UP_ByAdmin => T_MailSender
+	UM_AccountActivation => T_MailSender
+	UM_Registration => T_MailSender
+	UM_A_RecoverPass => T_MailSender
+	UM_UpdateEmail => UM_UserProfile
+	MV_T_F_BS_ByUserGeolocation => MV_T_UserGeolocation
+	DM_DI_DataFeeding => T_EntitiesInformation
+	DM_A_G_Batch => T_EntitiesInformation
+	DM_DI_DataFeeding => T_FileUploader
+	DM_DS_Gallery => T_FileUploader
+	GUI_L_Export => T_EntitiesInformation
+	GUI_L_FormLink => GUI_Forms
+	MV_DetailOnClick => GUI_Forms
+	MV_T_ViewMapAsList => GUI_Lists
+	MWM_TA_SensorDataCollector => MWM_M_Employee
+	MWM_M_VisitConstraint => MWM_M_Employee
+	MWM_M_VisitConstraint => MWM_M_PlannedVisit
+	MWM_M_VisitConstraint => MWM_M_Client
+	MWM_M_VisitConstraint => MWM_VisitType
+	MWM_TA_TrajectoryAnnotator => MWM_M_VisitConstraint
+	MWM_TA_TrajectoryAnnotator => MWM_M_Activity
+	MWM_TrajectoryExploitation => MWM_M_VisitConstraint
+	MWM_TE_ActivitiesRecord => MWM_M_Activity
+	MWM_TE_Statistics => MWM_M_Activity
+	MWM_TE_QueryView => MWM_M_Activity
+	MWM_VisitSchedule => MWM_M_VisitConstraint
+	MWM_PM_Employees => MWM_M_Employee
+	MWM_PM_Clients => MWM_M_Client
+	GUI_SP_Management => UserManagement
+	MWM_EmployeeAuthentication => UserManagement
+	D_C_Geoserver => MV_MS_GeoServer
+	D_C_Kibana => D_C_Elastic
+	MV_MS_GJ_Paginated => !MV_MS_GJ_Cached
+	MV_MS_GJ_Cached => !MV_MS_GJ_Paginated
+	MV_MapCustomization => MV_LM_ExternalLayer
+	MV_MapCustomization => MV_MM_MultipleMapViewer

@@ -1,0 +1,19 @@
+{
+  "id": "echo-plugin",
+  "name": "Echo",
+  "description": "A remote example: a separate HTTP service that receives LINEA's events and calls LINEA's API back.",
+  "icon": "pi-send",
+  "version": "1.0.0",
+  "requires": { "linea": ">=0.1.0", "hostApi": "^1.0.0" },
+  "serviceKey": "serviceKey",
+  "settings": {
+    "url": { "type": "url", "label": "Service address", "default": "http://localhost:8091", "env": "ECHO_URL" },
+    "serviceKey": { "type": "secret", "label": "Service key", "env": "ECHO_SERVICE_KEY", "required": true }
+  },
+  "remote": {
+    "baseUrl": "${ECHO_URL:-http://localhost:8091}",
+    "health": "/health",
+    "events": "${ECHO_URL:-http://localhost:8091}/events",
+    "web": "${ECHO_URL:-http://localhost:8091}/"
+  }
+}

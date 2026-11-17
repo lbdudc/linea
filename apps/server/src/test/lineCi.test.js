@@ -1,0 +1,149 @@
+import { describe, it, expect, vi } from 'vitest';
+import YAML from 'yaml';
+import {
+  defaultSplCi, normalizeSplCi, parseSplCi, renderSplPipeline, serializeSplCi, splTemplate,
+} from '../model/services/ci/splPipeline.js';
+import { CiConfigError } from '../model/services/ci/pipelineConfig.js';
+
+vi.mock('../model/git/index.js', async (importOriginal) => ({ ...(await importOriginal()), getGitProvider: () => git }));
+const git = {};
+const { default: LineCiService } = await import('../model/services/LineCiService.js');
+
+const on = (patch = {}) => normalizeSplCi({ ...defaultSplCi(), enabled: true, ...patch });
+const jobsOf = (yaml) => Object.keys(YAML.parse(yaml)).filter((key) => !key.startsWith('.') && !['include', 'workflow', 'variables', 'stages'].includes(key));
+
+describe('the CI settings of an SPL', () => {
+  it('start off, with the limits the template ships with', () => {
+    expect(defaultSplCi()).toMatchObject({ enabled: false, maxProducts: 5, maxSamples: 30, maxCcn: 15 });
+    expect(renderSplPipeline(defaultSplCi())).toBeNull();
+  });
+
+  it('keep where linea-ci is installed from, and refuse what a shell would take for more than a name', () => {
+    expect(defaultSplCi().package).toBe('git+https://$CI_SERVER_HOST/linea/linea-ci.git');
+    expect(normalizeSplCi({ package: 'git+https://$CI_SERVER_HOST/g/p.git#v2' }).package).toBe('git+https://$CI_SERVER_HOST/g/p.git#v2');
+    expect(normalizeSplCi({ package: ' git+https://gitlab.example/linea/linea-ci.git#v1 ' }).package).toBe('git+https://gitlab.example/linea/linea-ci.git#v1');
+    for (const bad of ['', 'a b', 'x;rm -rf /', '$(id)', 'a"b', 'a|b', 'a`b`']) expect(() => normalizeSplCi({ package: bad })).toThrow(CiConfigError);
+  });
+
+  it('refuse a number that makes no sense, and a runner tag that is absurd', () => {
+    expect(() => normalizeSplCi({ maxProducts: 0 })).toThrow(CiConfigError);
+    expect(() => normalizeSplCi({ maxProducts: 2.5 })).toThrow(/whole number/);
+    expect(() => normalizeSplCi({ maxCcn: 'many' })).toThrow(CiConfigError);
+    expect(() => normalizeSplCi({ tags: ['x'.repeat(61)] })).toThrow(/tag/);
+    expect(() => normalizeSplCi('nope')).toThrow(CiConfigError);
+  });
+
+  it('survive being written and read, and a broken file counts as off', () => {
+    const config = on({ maxProducts: 9, tags: ['a', 'b'] });
+    expect(parseSplCi(serializeSplCi(config))).toEqual(config);
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(parseSplCi('{ not json').enabled).toBe(false);
+    quiet.mockRestore();
+    expect(parseSplCi(null)).toEqual(defaultSplCi());
+  });
+});
+
+describe('the pipeline rendered for an SPL', () => {
+  it('is the template with the limits of the settings', () => {
+    const doc = YAML.parse(renderSplPipeline(on({ maxProducts: 12, maxSamples: 40, maxCcn: 20 })));
+    expect(doc.variables).toMatchObject({ LINEA_CI_MAX_PRODUCTS: '12', LINEA_CI_MAX_SAMPLES: '40', LINEA_CI_MAX_CCN: '20', LINEA_CI_PACKAGE: 'git+https://$CI_SERVER_HOST/linea/linea-ci.git' });
+  });
+
+  it('installs linea-ci from the package of the settings', () => {
+    const doc = YAML.parse(renderSplPipeline(on({ package: 'https://example.org/linea-ci.tgz' })));
+    expect(doc.variables.LINEA_CI_PACKAGE).toBe('https://example.org/linea-ci.tgz');
+  });
+
+  it('keeps every job of the template when everything is on', () => {
+    expect(jobsOf(renderSplPipeline(on()))).toEqual(jobsOf(splTemplate()));
+  });
+
+  it('asks every job for the runner tags, the child pipelines included', () => {
+    const doc = YAML.parse(renderSplPipeline(on({ tags: ['deploy', 'docker'] })));
+    expect(doc['.linea-ci'].tags).toEqual(['deploy', 'docker']);
+    expect(doc.variables.LINEA_CI_TAGS).toBe('deploy,docker');
+    const none = YAML.parse(renderSplPipeline(on({ tags: [] })));
+    expect(none['.linea-ci'].tags).toBeUndefined();
+    expect(none.variables.LINEA_CI_TAGS).toBeUndefined();
+  });
+
+  it('leaves out the jobs that are switched off, and nothing waits for them', () => {
+    const doc = YAML.parse(renderSplPipeline(on({ metrics: false, pairwise: false, version: false, release: false, security: false })));
+    for (const gone of ['metrics', 'sample', 'samples', 'version', 'release']) expect(doc[gone]).toBeUndefined();
+    expect(doc.include).toBeUndefined();
+    for (const kept of ['specs', 'select', 'products']) expect(doc[kept]).toBeDefined();
+    for (const job of Object.values(doc)) for (const name of job?.needs ?? []) expect(doc[name]).toBeDefined();
+  });
+
+  it('has a release job only when LINEA can be reached: a tag with no LINEA_TOKEN runs nothing instead of failing', () => {
+    const { release } = YAML.parse(renderSplPipeline(on()));
+    expect(release.rules).toEqual([{ if: '$CI_COMMIT_TAG && $LINEA_TOKEN' }]);
+  });
+
+  it('says it is generated, and is valid YAML', () => {
+    const text = renderSplPipeline(on());
+    expect(text.startsWith('# CI of the SPL. It is generated by LINEA')).toBe(true);
+    expect(() => YAML.parse(text)).not.toThrow();
+  });
+});
+
+describe('saving the CI of an SPL', () => {
+  const file = (content, revision = 'r1') => ({ content: Buffer.from(content).toString('base64'), revision });
+  const service = (files = {}) => {
+    const svc = new LineCiService();
+    svc.lineRepository = { findById: vi.fn().mockResolvedValue({ _id: 'l1', repoId: 3, gitHost: 'gitlab' }) };
+    svc.permissionChecker = { checkUserExistsAndHasPrivileges: vi.fn().mockResolvedValue({ gitTokens: { gitlab: { accessToken: 't' } } }), hasPrivileges: vi.fn().mockResolvedValue(true) };
+    git.getFileRevision = vi.fn(async ({ path }) => files[path] ?? Promise.reject(new Error('404 File Not Found')));
+    git.commit = vi.fn().mockResolvedValue({});
+    git.enablePipelines = vi.fn().mockResolvedValue(true);
+    return svc;
+  };
+
+  it('commits the settings and the pipeline together, once', async () => {
+    const svc = service();
+    await svc.saveCi({ id: 'l1', userId: 'u', config: { enabled: true, maxProducts: 7 } });
+    expect(git.commit).toHaveBeenCalledOnce();
+    const { actions, branch } = git.commit.mock.calls[0][0];
+    expect(branch).toBe('main');
+    expect(actions.map((a) => `${a.action}:${a.path}`)).toEqual(['create:.linea/ci.json', 'create:.gitlab-ci.yml']);
+    expect(YAML.parse(actions[1].content).variables.LINEA_CI_MAX_PRODUCTS).toBe('7');
+  });
+
+  it('turns CI/CD on for the repository when the checks are turned on, and leaves it alone when they are off', async () => {
+    await service().saveCi({ id: 'l1', userId: 'u', config: { enabled: true } });
+    expect(git.enablePipelines).toHaveBeenCalledWith(expect.objectContaining({ id: 3 }));
+    const off = service();
+    await off.saveCi({ id: 'l1', userId: 'u', config: { enabled: false } });
+    expect(git.enablePipelines).not.toHaveBeenCalled();
+  });
+
+  it('commits nothing when nothing changed', async () => {
+    const config = on({ maxProducts: 7 });
+    const svc = service({ '.linea/ci.json': file(serializeSplCi(config)), '.gitlab-ci.yml': file(renderSplPipeline(config)) });
+    await svc.saveCi({ id: 'l1', userId: 'u', config });
+    expect(git.commit).not.toHaveBeenCalled();
+  });
+
+  it('turning it off takes the pipeline file out but keeps the settings', async () => {
+    const config = on();
+    const svc = service({ '.linea/ci.json': file(serializeSplCi(config)), '.gitlab-ci.yml': file(renderSplPipeline(config)) });
+    const answer = await svc.saveCi({ id: 'l1', userId: 'u', config: { ...config, enabled: false } });
+    const { actions } = git.commit.mock.calls[0][0];
+    expect(actions.map((a) => `${a.action}:${a.path}`)).toEqual(['update:.linea/ci.json', 'delete:.gitlab-ci.yml']);
+    expect(answer.supported).toBe(true);
+  });
+
+  it('refuses a configuration that is not valid before touching the repository', async () => {
+    const svc = service();
+    await expect(svc.saveCi({ id: 'l1', userId: 'u', config: { enabled: true, maxProducts: -1 } })).rejects.toThrow(CiConfigError);
+    expect(git.commit).not.toHaveBeenCalled();
+  });
+
+  it('needs maintainer access to save, only reporter to read', async () => {
+    const svc = service();
+    await svc.getCi({ id: 'l1', userId: 'u' });
+    await svc.saveCi({ id: 'l1', userId: 'u', config: {} });
+    const levels = svc.permissionChecker.checkUserExistsAndHasPrivileges.mock.calls.map(([args]) => args.accessLevel);
+    expect(levels[0]).toBeLessThan(levels[1]);
+  });
+});

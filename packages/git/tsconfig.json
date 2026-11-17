@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "declaration": true,
+    "sourceMap": true,
+    "inlineSources": true,
+    "outDir": "dist",
+    "rootDir": "src",
+
+    // the in-memory hosts of `testing/` are plain JavaScript (they are the same files the server tests were using)
+    "allowJs": true,
+    "checkJs": false,
+
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,47 @@
+# What this deployment is made of: its git hosts and its plugins. Copy to deploy/config/linea.config.yml (mounted at /config in Docker).
+#
+# - A git host or plugin listed here is put in this state on EVERY start, so it survives a wiped database, and it is locked in the
+#   Settings (Git hosts) and Plugins views. What is not listed is what an administrator chose there (kept in MongoDB).
+# - ${NAME} and ${NAME:-default} are replaced from the environment: keep secrets there, and this file in git.
+# - The Plugins view's "Download config" writes the current choices as a file like this one.
+#
+# Git hosts are configuration, not plugins: LINEA needs at least one, and any of them can be on together. With nothing here (and no
+# GITLAB_* / GITHUB_* in the environment) the repositories stay on this server, in the `local` host; people sign in with accounts made
+# here (ADMIN_USERS + LINEA_ADMIN_PASSWORD make the first administrator).
+gitHosts:
+  primary: local
+  local:
+    dataDir: /data/repos
+  # gitlab:
+  #   url: https://gitlab.example.com
+  #   clientId: ${GITLAB_CLIENT_ID}
+  #   clientSecret: ${GITLAB_SECRET_ID}
+  #   defaultNamespace: linea/spls
+  # github:
+  #   clientId: ${GITHUB_CLIENT_ID}
+  #   clientSecret: ${GITHUB_CLIENT_SECRET}
+
+plugins:
+  analytics-plugin:
+    enabled: true
+    settings:
+      url: ${FLAMAPY_API_URL:-http://flamapy-server:8000}
+  agents-plugin:
+    enabled: false
+    # settings:
+    #   url: http://host.docker.internal:3001
+    #   serviceKey: ${AGENTS_SERVICE_KEY}
+  spl-code-editor:
+    enabled: false   # a Code tab on simple SPLs: edit files, feature<->code annotations, try a derivation
+    # settings:
+    #   maxFileKb: 512
+
+# How this LINEA behaves. Whatever is set here is locked in Configuration; leave a key out to let administrators change it there.
+# instance:
+#   sessionHours: 2            # how long a session lasts (0.5 - 720)
+#   maxFailedSignIns: 10       # wrong passwords before the door closes, per person and address
+#   lockMinutes: 15            # how long it stays closed
+#   minPasswordLength: 8       # for accounts made on this server (8 - 128)
+#   modulesPublish: everyone   # everyone | admins: who may publish a module
+#   modulesRegister: everyone  # everyone | admins: who may change the registry listing
+#   auditRetentionDays: 180    # older audit entries are removed

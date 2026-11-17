@@ -1,0 +1,5 @@
+datamodel um
+
+entity UM_User {
+  property login: String required pk
+}

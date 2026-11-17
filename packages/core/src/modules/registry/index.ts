@@ -1,0 +1,5 @@
+export { createModuleRegistry, createMetamodelRegistry } from './registry.js'
+export type { PackageRegistry, LoadedPackage } from './registry.js'
+export { createRoutingSource } from './routing.js'
+export { createMemoryCatalog, createFileCatalog, registerPackage, registerLocation } from './catalog.js'
+export type { PackageCatalog } from './catalog.js'

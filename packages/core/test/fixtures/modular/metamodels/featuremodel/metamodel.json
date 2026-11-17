@@ -1,0 +1,8 @@
+{
+  "name": "featuremodel",
+  "version": "1.0.0",
+  "description": "Feature model of an SPL and the feature selection of its products",
+  "requires": {
+    "file:metamodels/common": "^1.0.0"
+  }
+}

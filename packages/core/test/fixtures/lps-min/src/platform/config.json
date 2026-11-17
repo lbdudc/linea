@@ -1,0 +1,8 @@
+{
+  "ignore": ["target", "build"],
+  "delimiters": [
+    { "extension": ["html", "xml"], "start": "<!--%", "end": "%-->" },
+    { "extension": ["js", "md", "properties"], "start": "/*%", "end": "%*/" },
+    { "extension": ["json"], "start": "###<", "end": ">###" }
+  ]
+}

@@ -1,0 +1,17 @@
+# Feature model fixtures are compared byte for byte (tabs, CRLF and the absence
+# of a trailing newline are all part of what the parity tests assert).
+# Git must not normalise them.
+* text=auto eol=lf
+
+test/fixtures/** -text
+*.uvl -text
+
+# Line templates are byte-for-byte copies of the monolith's
+# `linea/server/src/model/services/templates/**`, and their content is what
+# gets committed into the GitLab repository of every line created through
+# `buildLineScaffold`. The monolith stores them with LF and runs on Linux, so
+# LF is what it actually deploys — a CRLF copy would seed every new line with
+# different bytes than `linea` does. The wildcard above already normalises
+# them; this rule states the requirement explicitly because it is the property
+# these files exist to preserve. See test/line/platform-files.test.ts.
+src/line/templates/** text eol=lf

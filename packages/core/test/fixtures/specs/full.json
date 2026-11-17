@@ -1,0 +1,34 @@
+{
+  "basicData": {
+    "name": "GEMA_Demo",
+    "version": "2.3.4",
+    "languages": ["en", "es", "gl"],
+    "SRID": "25829",
+    "database": {
+      "host": "localhost",
+      "port": 5432,
+      "name": "gema_demo"
+    },
+    "extra": {
+      "contactEmail": "demo@example.org"
+    },
+    "testEnvironment": {
+      "image": "node:20",
+      "command": "npm test"
+    }
+  },
+  "dataModel": {
+    "cells": [
+      { "id": 1, "name": "Sensor", "type": "entity" },
+      { "id": 2, "name": "Reading", "type": "entity" }
+    ]
+  },
+  "features": ["GEMA_SPL", "DM_GT_Identity", "MV_MS_GeoServer"],
+  "statics": [
+    { "path": "welcome.html", "title": "Welcome" }
+  ],
+  "sensor": {
+    "dsl": "",
+    "parsed": null
+  }
+}

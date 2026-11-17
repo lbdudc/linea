@@ -1,0 +1,451 @@
+featuremodel GEMA_SPL feature GEMA_SPL {
+    mandatory {
+      feature DataManagement {
+        mandatory {
+          feature DM_SpatialDatabase {
+            mandatory {
+              feature DM_SD_PostGIS
+            }
+          }
+          feature DM_GenerationType {
+            alternative {
+              feature DM_GT_Identity
+              feature DM_GT_Sequence
+            }
+          }
+          feature DM_DataServer {
+            optional {
+              feature DM_DS_Types {
+                or {
+                  feature DM_DS_Gallery
+                  feature DM_DS_Address
+                  feature DM_DS_GTFS
+                }
+              }
+            }
+          }
+        }
+        optional {
+          feature DM_DataInput {
+            or {
+              feature DM_DI_DataFeeding {
+                or {
+                  feature DM_DI_DF_Shapefile
+                  feature DM_DI_DF_Raster
+                  feature DM_DI_DF_CSV
+                  feature DM_DI_DF_Network
+                }
+              }
+              feature DM_DI_Digitizing {
+                or {
+                  feature DM_DI_D_Form
+                  feature DM_DI_D_Map
+                }
+              }
+            }
+          }
+          feature DM_Algorithmics {
+            or {
+              feature DM_A_Connectivity {
+                or {
+                  feature DM_A_C_RouteCalculation {
+                    or {
+                      feature DM_A_C_RC_pgRouting
+                      feature DM_A_C_RC_GraphHopper
+                    }
+                  }
+                  feature DM_A_C_NetworkTracing
+                  feature DM_A_C_ConectivityCheck
+                }
+              }
+              feature DM_A_Geolocalization {
+                or {
+                  feature DM_A_G_Batch {
+                    alternative {
+                      feature DM_A_G_Nominatim
+                      feature DM_A_G_GoogleMaps
+                    }
+                  }
+                  feature DM_A_G_Documents
+                }
+              }
+            }
+          }
+        }
+      }
+      feature GraphicalUserInterface {
+        optional {
+          feature GUI_Menu {
+            mandatory {
+              feature GUI_M_Position {
+                alternative {
+                  feature GUI_M_Top
+                  feature GUI_M_Left
+                }
+              }
+            }
+            optional {
+              feature GUI_M_Custom
+            }
+          }
+          feature GUI_Forms {
+            optional {
+              feature GUI_F_Editable
+              feature GUI_F_Creatable
+              feature GUI_F_Removable {
+                optional {
+                  feature GUI_F_R_ConfirmationAlert
+                }
+              }
+            }
+          }
+          feature GUI_Lists {
+            optional {
+              feature GUI_L_Sortable
+              feature GUI_L_Filterable {
+                alternative {
+                  feature GUI_L_F_RowFilter
+                  feature GUI_L_F_BasicSearch
+                }
+              }
+              feature GUI_L_LocateInMap
+              feature GUI_L_ViewListAsMap
+              feature GUI_L_FormLink
+              feature GUI_L_Export
+            }
+          }
+          feature GUI_StaticPages {
+            optional {
+              feature GUI_SP_Management
+            }
+          }
+        }
+      }
+      feature MapViewer {
+        mandatory {
+          feature MV_MapServer {
+            or {
+              feature MV_MS_GeoServer
+              feature MV_MS_GeoJSON {
+                optional {
+                  feature MV_MS_GJ_Cached
+                  feature MV_MS_GJ_Paginated
+                }
+              }
+            }
+          }
+          feature MV_Tools {
+            mandatory {
+              feature MV_T_Pan
+              feature MV_T_Zoom
+            }
+            optional {
+              feature MV_T_ZoomWindow
+              feature MV_T_MeasureControl {
+                mandatory {
+                  feature MV_T_M_Distance
+                  feature MV_T_M_Line
+                  feature MV_T_M_Polygon
+                }
+                optional {
+                  feature MV_T_M_MapElement
+                }
+              }
+              feature MV_T_Export {
+                mandatory {
+                  feature MV_T_E_Type {
+                    or {
+                      feature MV_T_E_F_PNG
+                      feature MV_T_E_F_PDF
+                      feature MV_T_E_F_URL
+                    }
+                  }
+                }
+                optional {
+                  feature MV_T_E_SetScale
+                  feature MV_T_E_ShowLegend
+                  feature MV_T_E_DRM
+                }
+              }
+              feature MV_T_Filterable {
+                or {
+                  feature MV_T_F_RowFilter
+                  feature MV_T_F_BasicSearch {
+                    optional {
+                      feature MV_T_F_BS_ByUserGeolocation
+                    }
+                  }
+                }
+              }
+              feature MV_T_UserGeolocation
+              feature MV_T_InformationMode
+              feature MV_T_ViewMapAsList
+              feature MV_MapCustomization
+            }
+          }
+          feature MV_MapManagement {
+            alternative {
+              feature MV_MM_UniqueMapViewer {
+                mandatory {
+                  feature MV_MM_UMV_MapCenter {
+                    alternative {
+                      feature MV_MM_UMV_MC_BBox
+                      feature MV_MM_UMV_MC_Coordinates
+                      feature MV_MM_UMV_MC_UserPosition
+                    }
+                  }
+                }
+              }
+              feature MV_MM_MultipleMapViewer {
+                optional {
+                  feature MV_MM_MMV_MapSelectorInMapViewer
+                  feature MV_MM_MMV_MapSelectorInMenuElement
+                }
+              }
+            }
+          }
+        }
+        optional {
+          feature MV_ContextInformation {
+            or {
+              feature MV_CI_Map
+              feature MV_CI_Scale
+              feature MV_CI_CenterCoordinates
+              feature MV_CI_Dimensions
+            }
+          }
+          feature MV_LayerManagement {
+            or {
+              feature MV_LM_BaseLayerSelector
+              feature MV_LM_Order
+              feature MV_LM_CenterViewOnLayer
+              feature MV_LM_HideLayer
+              feature MV_LM_Opacity
+              feature MV_LM_Style
+              feature MV_LM_ExternalLayer
+              feature MV_LM_StylePreview
+            }
+          }
+          feature MV_DetailOnClick
+          feature MV_Clustering
+        }
+      }
+      feature Tools {
+        mandatory {
+          feature T_GIS
+        }
+        optional {
+          feature T_MailSender
+          feature T_Swagger
+          feature T_Payments {
+            or {
+              feature T_P_PayPal
+              feature T_P_RedSys
+            }
+          }
+          feature T_FileUploader
+          feature T_EntitiesInformation
+          feature T_Quartz
+        }
+      }
+    }
+    optional {
+      feature MWMSupport {
+        optional {
+          feature MWM_TrajectoryAnnotation {
+            or {
+              feature MWM_TA_SensorDataCollector
+              feature MWM_TA_TrajectoryAnnotator
+            }
+          }
+          feature MWM_TrajectoryExploitation {
+            mandatory {
+              feature MWM_TE_Capabilities {
+                or {
+                  feature MWM_TE_Realtime
+                  feature MWM_TE_Planning
+                  feature MWM_TE_ActivitiesRecord
+                  feature MWM_TE_VisitsRecord
+                  feature MWM_TE_Statistics
+                  feature MWM_TE_QueryView
+                }
+              }
+            }
+            optional {
+              feature MWM_TE_Tools {
+                or {
+                  feature MWM_TE_T_ClientCustomLink
+                }
+              }
+            }
+          }
+          feature MWM_VisitSchedule
+          feature MWM_VisitType {
+            alternative {
+              feature MVM_VT_OnlyDay
+              feature MVM_VT_WithTime
+            }
+          }
+          feature MWM_PersonnelManager {
+            or {
+              feature MWM_PM_Employees
+              feature MWM_PM_Clients
+            }
+          }
+          feature MWM_Models {
+            or {
+              feature MWM_M_Employee
+              feature MWM_M_PlannedVisit
+              feature MWM_M_Client
+              feature MWM_M_Activity
+              feature MWM_M_VisitConstraint
+            }
+          }
+          feature MWM_EmployeeAuthentication
+        }
+      }
+      feature UserManagement {
+        mandatory {
+          feature UM_Authentication {
+            optional {
+              feature UM_A_RememberPass
+              feature UM_A_RecoverPass
+            }
+          }
+          feature UM_UpdatePassword {
+            mandatory {
+              feature UM_UP_ByUser
+            }
+            optional {
+              feature UM_UP_ByAdmin
+            }
+          }
+          feature UM_SecurityType {
+            alternative {
+              feature UM_ST_JWT
+            }
+          }
+        }
+        optional {
+          feature UM_Registration {
+            or {
+              feature UM_R_ByAdmin
+              feature UM_R_Anonymous
+            }
+          }
+          feature UM_AccountActivation {
+            or {
+              feature UM_AA_ByEmail
+              feature UM_AA_ByAdmin
+            }
+          }
+          feature UM_UpdateEmail
+          feature UM_UserProfile
+          feature UM_UserCRUD
+          feature UM_Capabilities {
+            optional {
+              feature UM_C_AnonymousUserCanViewEntities
+            }
+          }
+        }
+      }
+      feature Deploy {
+        or {
+          feature D_Containers {
+            or {
+              feature D_C_Postgres
+              feature D_C_Geoserver
+              feature D_C_Nginx
+              feature D_C_Elastic
+              feature D_C_Kibana
+              feature D_C_Kafka
+            }
+          }
+          feature D_GitLabRunner {
+            optional {
+              feature D_GLR_Unique
+            }
+          }
+        }
+      }
+    }
+  } constraints {
+  UM_R_ByAdmin
+    => UM_UserCRUD
+  UM_AA_ByAdmin
+    => UM_UserCRUD
+  UM_UP_ByAdmin
+    => UM_UserCRUD
+  UM_UP_ByAdmin
+    => T_MailSender
+  UM_AccountActivation
+    => T_MailSender
+  UM_Registration
+    => T_MailSender
+  UM_A_RecoverPass
+    => T_MailSender
+  UM_UpdateEmail
+    => UM_UserProfile
+  MV_T_F_BS_ByUserGeolocation
+    => MV_T_UserGeolocation
+  DM_DI_DataFeeding
+    => T_EntitiesInformation
+  DM_A_G_Batch
+    => T_EntitiesInformation
+  DM_DI_DataFeeding
+    => T_FileUploader
+  DM_DS_Gallery
+    => T_FileUploader
+  GUI_L_Export
+    => T_EntitiesInformation
+  GUI_L_FormLink
+    => GUI_Forms
+  MV_DetailOnClick
+    => GUI_Forms
+  MV_T_ViewMapAsList
+    => GUI_Lists
+  MWM_TA_SensorDataCollector
+    => MWM_M_Employee
+  MWM_M_VisitConstraint
+    => MWM_M_Employee
+  MWM_M_VisitConstraint
+    => MWM_M_PlannedVisit
+  MWM_M_VisitConstraint
+    => MWM_M_Client
+  MWM_M_VisitConstraint
+    => MWM_VisitType
+  MWM_TA_TrajectoryAnnotator
+    => MWM_M_VisitConstraint
+  MWM_TA_TrajectoryAnnotator
+    => MWM_M_Activity
+  MWM_TrajectoryExploitation
+    => MWM_M_VisitConstraint
+  MWM_TE_ActivitiesRecord
+    => MWM_M_Activity
+  MWM_TE_Statistics
+    => MWM_M_Activity
+  MWM_TE_QueryView
+    => MWM_M_Activity
+  MWM_VisitSchedule
+    => MWM_M_VisitConstraint
+  MWM_PM_Employees
+    => MWM_M_Employee
+  MWM_PM_Clients
+    => MWM_M_Client
+  GUI_SP_Management
+    => UserManagement
+  MWM_EmployeeAuthentication
+    => UserManagement
+  D_C_Geoserver
+    => MV_MS_GeoServer
+  D_C_Kibana
+    => D_C_Elastic
+  MV_MS_GJ_Paginated
+    => ! MV_MS_GJ_Cached
+  MV_MS_GJ_Cached
+    => ! MV_MS_GJ_Paginated
+  MV_MapCustomization
+    => MV_LM_ExternalLayer
+  MV_MapCustomization
+    => MV_MM_MultipleMapViewer
+}

@@ -1,0 +1,9 @@
+{
+  "name": "user-management",
+  "version": "1.0.0",
+  "requires": {
+    "modules": { "file:modules/core": "^1.0.0" },
+    "metamodels": { "file:metamodels/datamodel": "^2.0.0" }
+  },
+  "offers": { "datamodel": "models/datamodel.instance" }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "@lbdudc/linea-plugin-sdk",
+  "version": "1.0.0",
+  "description": "Helpers for writing LINEA plugins: the contract of the host (see docs/linea/plugins.md), with no dependencies",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "Apache-2.0",
+  "author": "Laboratorio de Bases de Datos (LBD) - Universidade da Coruña",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lbdudc/linea.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/lbdudc/linea/tree/main/packages/sdk",
+  "bugs": {
+    "url": "https://github.com/lbdudc/linea/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

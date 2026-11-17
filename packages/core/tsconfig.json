@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": false,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "declaration": true,
+    "sourceMap": true,
+    // `files` publishes dist/ but not src/, so a plain source map would point at
+    // sources the consumer does not have. Embedding the sources keeps stack
+    // traces readable from the installed package.
+    "inlineSources": true,
+    // Deliberately OFF. TypeScript cannot embed sources into declaration maps
+    // (`inlineSources` only applies to .js.map), so `declarationMap: true` would
+    // emit 21 .d.ts.map files whose `sources` dangle at unpublished `../src/*.ts`.
+    // Go-to-definition lands in the .d.ts instead, which is self-contained.
+    "declarationMap": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "removeComments": false,
+
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}
