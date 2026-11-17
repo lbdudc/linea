@@ -32,6 +32,13 @@ jobs:
           cache: npm
       - uses: oven-sh/setup-bun@v2
       - run: npm ci
+      # the server tests start an in-memory MongoDB: fetch its binary once, before the test files race to download it
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}
+      - name: Download the MongoDB binary the tests use
+        run: node -e "const {MongoMemoryServer}=require('mongodb-memory-server');MongoMemoryServer.create().then((s)=>s.stop())"
       - run: npm run build
       - run: npm run typecheck
       # core, git, ci, cli (with bun), server and client, with the plugins and the metamodels in place
