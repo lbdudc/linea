@@ -1,6 +1,6 @@
 {
   "name": "@lbdudc/linea-core",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Motor autocontenido de Líneas de Producto Software (SPL): feature models, validación de specs y derivación de productos. Funciona 100% offline.",
   "license": "Apache-2.0",
   "author": "Laboratorio de Bases de Datos (LBD) - Universidade da Coruña",

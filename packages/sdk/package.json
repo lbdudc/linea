@@ -1,6 +1,6 @@
 {
   "name": "@lbdudc/linea-plugin-sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Helpers for writing LINEA plugins: the contract of the host (see docs/linea/plugins.md), with no dependencies",
   "type": "module",
   "main": "index.js",

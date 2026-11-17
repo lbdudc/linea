@@ -23,8 +23,8 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@lbdudc/bango": "^0.2.0",
-    "@lbdudc/linea-core": "^0.1.1",
-    "@lbdudc/linea-git": "^0.1.0",
+    "@lbdudc/linea-core": "^0.1.2",
+    "@lbdudc/linea-git": "^0.1.1",
     "antlr4": "^4.13.1-patch-1",
     "aws-sdk": "^2.1490.0",
     "bcrypt": "^5.1.1",

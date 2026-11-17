@@ -1,6 +1,6 @@
 {
   "name": "@lbdudc/linea-ci",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "CI steps for LINEA SPLs and the products they generate: leftovers, spec validation, derivation, change-driven product selection. Lines made of modules are composed from the registry of the git host.",
   "license": "Apache-2.0",
   "type": "module",
@@ -17,8 +17,8 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@lbdudc/linea-core": "^0.1.1",
-    "@lbdudc/linea-git": "^0.1.0",
+    "@lbdudc/linea-core": "^0.1.2",
+    "@lbdudc/linea-git": "^0.1.1",
     "comlink": "^4.4.2",
     "langium": "^4.4.0",
     "@lbdudc/bango": "^0.2.0"
