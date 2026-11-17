@@ -13,14 +13,16 @@ Documentation: **https://lbdudc.github.io/linea-web/** · Plugins: [`lbdudc/line
 
 LINEA keeps its repositories itself (the `local` git host), so a first try needs neither GitLab nor GitHub.
 
+Needs [Docker](https://docs.docker.com/get-docker/) with Compose v2. One step:
+
 ```bash
-git clone https://github.com/lbdudc/linea
-cd linea/deploy
-cp .env.example .env     # set JWT_SIGN_KEY and LINEA_ADMIN_PASSWORD (both are placeholders)
-docker compose up -d
+git clone --depth 1 https://github.com/lbdudc/linea && linea/deploy/install.sh
 ```
 
-Open http://localhost:9000 and sign in as `admin` with the `LINEA_ADMIN_PASSWORD` you set. `docker compose up` pulls MongoDB, a proxy and
+The script writes `deploy/.env` with fresh secrets, pulls the images, starts everything and prints the admin password. Run it again to update
+(it keeps your `.env`). By hand: `cp .env.example .env`, set `JWT_SIGN_KEY` and `LINEA_ADMIN_PASSWORD`, `docker compose up -d`.
+
+Open http://localhost:9000 and sign in as `admin` with the printed password (`LINEA_ADMIN_PASSWORD`). The stack pulls MongoDB, a proxy and
 two public images, for amd64 and arm64:
 
 | Image | What |
@@ -28,7 +30,7 @@ two public images, for amd64 and arm64:
 | `ghcr.io/lbdudc/linea-server` | API, git host, generation; carries the official plugins and the metamodels |
 | `ghcr.io/lbdudc/linea-client` | the web interface (built with the plugins' client code) |
 
-Tags are the release versions (`0.2.0`, `0.2`, `latest`); pin one with `LINEA_VERSION=0.2.0` in `deploy/.env`.
+Tags are the release versions (`0.2.0`, `0.2`, `latest`; [all releases](https://github.com/lbdudc/linea/releases)); pin one with `LINEA_VERSION=0.2.0 ./install.sh` or in `deploy/.env`. To update: `docker compose pull && docker compose up -d`.
 
 | Setting (`deploy/.env`) | Default | What |
 |---|---|---|

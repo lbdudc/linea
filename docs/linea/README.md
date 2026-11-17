@@ -28,12 +28,11 @@ LINEA is a Software Product Line ALM (Application Lifecycle Management) platform
 
 ## Quick Start
 
-1. Ensure MongoDB (with replica set) and a GitLab instance are running
-2. `cp server/.env.example server/.env` (not in git) and fill it in — the required vars are `GITLAB_HOSTNAME`, `GITLAB_CLIENT_ID`, `GITLAB_SECRET_ID`, `JWT_SIGN_KEY`, `ANTHROPIC_API_KEY`, and `GITLAB_WEBHOOK_SECRET`
-3. `docker compose -f deploy/docker-compose.yml up -d` (or `npm run dev` locally)
-4. Log in via GitLab OAuth
-5. Create a Line (points at an existing GitLab group/repo)
-6. Create Products under that line; generate them; resolve conflicts
+1. `git clone https://github.com/lbdudc/linea && cd linea/deploy && ./install.sh` (needs Docker; it writes `deploy/.env` with fresh secrets and starts everything with the published images)
+2. Open http://localhost:9000 and sign in as `admin` with the password the script printed
+3. Create a Line, then Products under it; generate them; resolve conflicts
+
+To sign in with GitLab or GitHub instead of the built-in `local` host, see `deploy/config-gitlab/` and the guides at https://lbdudc.github.io/linea-web/. To develop LINEA itself, see the root `README.md`.
 
 ---
 
