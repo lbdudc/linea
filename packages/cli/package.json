@@ -1,6 +1,6 @@
 {
   "name": "@lbdudc/linea-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "LINEA from the terminal: manage software product lines and generate products. Needs the Bun runtime.",
   "main": "src/index.tsx",
@@ -20,8 +20,8 @@
   },
   "dependencies": {
     "@lbdudc/bango": "^0.2.0",
-    "@lbdudc/linea-core": "^0.1.1",
-    "@lbdudc/linea-git": "^0.1.0",
+    "@lbdudc/linea-core": "^0.1.2",
+    "@lbdudc/linea-git": "^0.1.1",
     "@opentui/core": "^0.4.5",
     "@opentui/solid": "^0.4.5",
     "langium": "^4.4.0",

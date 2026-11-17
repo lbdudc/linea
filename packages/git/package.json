@@ -1,6 +1,6 @@
 {
   "name": "@lbdudc/linea-git",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The git host of LINEA, GitLab or GitHub, behind one interface: repositories, files, commits, change requests, the registry of modules and metamodels. Used by the LINEA server and the LINEA CLI.",
   "license": "Apache-2.0",
   "author": "Laboratorio de Bases de Datos (LBD) - Universidade da Coruña",
@@ -43,7 +43,7 @@
     "@lbdudc/linea-core": "*"
   },
   "devDependencies": {
-    "@lbdudc/linea-core": "^0.1.1",
+    "@lbdudc/linea-core": "^0.1.2",
     "@types/express": "^4.17.21",
     "@types/node": "^20.17.0",
     "@types/semver": "^7.8.0",
