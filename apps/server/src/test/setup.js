@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import mongoose from 'mongoose';
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { Container } from 'typedi';
@@ -8,8 +9,17 @@ const dataSource = Container.get(DataSource);
 let mongoInstance;
 
 export async function setup() {
-    mongoInstance = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
-    await dataSource.connect({url: mongoInstance.getUri()}).catch(error => {
+    let url;
+    if (process.env.LINEA_TEST_MONGO_URI) {
+      // the shared instance of mongo.global.js, with a database of this file's own
+      const shared = new URL(process.env.LINEA_TEST_MONGO_URI);
+      shared.pathname = `/test_${randomUUID().replaceAll('-', '')}`;
+      url = shared.toString();
+    } else {
+      mongoInstance = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+      url = mongoInstance.getUri();
+    }
+    await dataSource.connect({url}).catch(error => {
         console.error('MongoDB connection error:', error.message);
       });
 
@@ -20,7 +30,7 @@ export async function setup() {
 
 export async function teardown() {
     await dataSource.disconnect();
-    await mongoInstance.stop();
+    await mongoInstance?.stop();
 }
 
 export async function clear() {

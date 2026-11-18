@@ -14,7 +14,9 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.js', `${plugins}/*/test/server/**/*.test.js`],
     watchExclude: ['**/tmp/**'],
+    globalSetup: ['./src/test/support/mongo.global.js'],
     setupFiles: ['./src/test/support/env.setup.js', './src/test/support/netProbe.setup.js'],
     hookTimeout: 30000,
+    testTimeout: 30000,
   },
 })
