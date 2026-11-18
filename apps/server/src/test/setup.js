@@ -34,6 +34,9 @@ export async function teardown() {
 }
 
 export async function clear() {
-    await dataSource.dropDatabase();
+    // emptied, not dropped: dropping the database costs ~110 ms of MongoDB's storage work after every test, and loses the indexes
+    const { db } = mongoose.connection;
+    const names = (await db.listCollections({}, { nameOnly: true }).toArray()).map(({ name }) => name);
+    await Promise.all(names.map((name) => db.collection(name).deleteMany({})));
     vi.restoreAllMocks();
 }
