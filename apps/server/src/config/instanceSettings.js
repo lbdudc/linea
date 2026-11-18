@@ -14,6 +14,8 @@ export const INSTANCE_SCHEMA = {
   syncConcurrency: { type: 'number', group: 'scheduler', min: 1, max: 20, default: 2 },
   generationConcurrency: { type: 'number', group: 'scheduler', min: 1, max: 10, default: 3 },
   schedulerPaused: { type: 'boolean', group: 'scheduler', default: false },
+  backupEveryHours: { type: 'number', group: 'backup', min: 0, max: 720, default: 0 },
+  backupKeep: { type: 'number', group: 'backup', min: 1, max: 100, default: 7 },
   auditRetentionDays: { type: 'number', group: 'audit', min: 1, max: 3650, default: 180 },
 };
 

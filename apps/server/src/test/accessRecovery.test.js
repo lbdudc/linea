@@ -125,6 +125,29 @@ describe('importing a config file', () => {
     expect(await auditActions(app, root)).toContain('settings.import');
   });
 
+  test('shows each key before and after, keeps the applied config and puts it back', async () => {
+    const app = buildApp();
+    await makeLoginable('root', true);
+    const root = (await signIn(app, 'root', 'correct-horse', 'x')).body.token;
+    const file = 'instance:\n  maxFailedSignIns: 5\n  minPasswordLength: 12\n';
+    const dry = await importing(app, root, file);
+    expect(dry.body.changes.find((change) => change.id === 'maxFailedSignIns').rows).toEqual([{ key: 'maxFailedSignIns', before: '10', after: '5' }]);
+    expect((await request(app).get('/api/settings/import/history').set('Authorization', `Bearer ${root}`)).body).toEqual([]);
+
+    await importing(app, root, file, true);
+    const history = (await request(app).get('/api/settings/import/history').set('Authorization', `Bearer ${root}`)).body;
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({ by: 'root', failed: 0, rolledBackAt: null });
+    expect(history[0].changes.map((change) => change.id).sort()).toEqual(['maxFailedSignIns', 'minPasswordLength']);
+
+    const back = await request(app).post(`/api/settings/import/${history[0].id}/rollback`).set('Authorization', `Bearer ${root}`);
+    expect(back.body.results.every((result) => result.ok)).toBe(true);
+    const values = (await request(app).get('/api/settings/instance').set('Authorization', `Bearer ${root}`)).body.values;
+    expect(values).toMatchObject({ maxFailedSignIns: 10, minPasswordLength: 8 });
+    expect((await request(app).post(`/api/settings/import/${history[0].id}/rollback`).set('Authorization', `Bearer ${root}`)).status).toBe(409);
+    expect((await request(app).get('/api/settings/import/history').set('Authorization', `Bearer ${root}`)).body[0].rolledBackAt).not.toBeNull();
+  });
+
   test('a file that is not valid is refused, a secret from the environment is not copied, and only administrators import', async () => {
     const app = buildApp();
     await makeLoginable('root', true);

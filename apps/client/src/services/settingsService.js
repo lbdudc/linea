@@ -79,4 +79,29 @@ export default {
   async importConfig(text, apply = false) {
     return (await api.post('/settings/import', { text, apply })).data
   },
+
+  async backups() {
+    return (await api.get('/settings/backups')).data
+  },
+
+  async runBackup() {
+    return (await api.post('/settings/backups')).data
+  },
+
+  async backupPreview(name) {
+    return (await api.get(`/settings/backups/${encodeURIComponent(name)}/preview`)).data
+  },
+
+  async backupFile(name) {
+    return (await api.get(`/settings/backups/${encodeURIComponent(name)}`, { responseType: 'blob' })).data
+  },
+
+  /** The last configs that were applied. */
+  async importHistory() {
+    return (await api.get('/settings/import/history')).data
+  },
+
+  async rollbackImport(id) {
+    return (await api.post(`/settings/import/${id}/rollback`)).data
+  },
 }
