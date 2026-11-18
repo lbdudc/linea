@@ -30,6 +30,10 @@ export default defineConfig({
   server: { fs: { allow: [path.resolve(__dirname, '../..'), pluginsDir] } },
   test: {
     environment: 'jsdom',
+    // VM contexts load the modules of each file in about half the CPU of a process per file. The one test that redefines window.location
+    // cannot (it is not configurable in a VM context): it keeps a process of its own.
+    pool: 'vmThreads',
+    poolMatchGlobs: [['**/i18n.setLocale.test.js', 'forks']],
     // the first mount of a file imports its whole page: it can take longer than 5 s when the machine is busy
     testTimeout: 15_000,
     // (a plugin's own test setup, when that plugin is in the plugins folder)
