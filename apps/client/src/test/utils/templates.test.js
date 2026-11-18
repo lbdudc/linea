@@ -37,4 +37,8 @@ describe('notificationLink', () => {
     expect(notificationLink({ subject: 'issue', number: 3, target: { kind: 'line', id: 'a1' } })).toBe('/lines/a1?tab=issues&issue=3')
     expect(notificationLink({ subject: 'mr', number: 7, target: { kind: 'product', id: 'b2' } })).toBe('/products/b2?tab=mrs&mr=7')
   })
+
+  it('opens the CI/CD tab of the product for an alert about a run', () => {
+    expect(notificationLink({ subject: 'run', reason: 'failed', target: { kind: 'product', id: 'b2' } })).toBe('/products/b2?tab=cicd')
+  })
 })

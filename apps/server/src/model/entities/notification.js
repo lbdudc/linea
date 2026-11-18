@@ -4,14 +4,15 @@ const RETENTION_SECONDS = 90 * 24 * 60 * 60;
 
 const notificationSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  reason: { type: String, enum: ['assigned', 'mentioned', 'state', 'comment'], required: true },
-  subject: { type: String, enum: ['issue', 'mr'], required: true },
+  reason: { type: String, enum: ['assigned', 'mentioned', 'state', 'comment', 'failed', 'conflicts', 'stuck'], required: true },
+  subject: { type: String, enum: ['issue', 'mr', 'run'], required: true },
   target: {
     kind: { type: String, enum: ['line', 'product', 'repo'], required: true },
     id: { type: String, required: true },
     name: { type: String },
   },
-  number: { type: Number, required: true },
+  number: { type: Number },
+  alertKey: { type: String },
   title: { type: String },
   actor: { type: String },
   excerpt: { type: String },
@@ -22,6 +23,7 @@ const notificationSchema = new mongoose.Schema({
 
 notificationSchema.index({ userId: 1, createdAt: -1 });
 notificationSchema.index({ userId: 1, read: 1 });
+notificationSchema.index({ userId: 1, alertKey: 1 }, { unique: true, partialFilterExpression: { alertKey: { $type: 'string' } } });
 notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: RETENTION_SECONDS });
 
 export default mongoose.model('Notification', notificationSchema);

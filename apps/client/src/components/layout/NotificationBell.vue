@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import Popover from 'primevue/popover'
 import Tooltip from 'primevue/tooltip'
+import NotificationRulesDialog from './NotificationRulesDialog.vue'
 import notificationService from 'src/services/notificationService'
 import { notificationLink } from 'src/utils/notificationLink'
 import { relativeShort } from 'src/utils/relativeTime'
@@ -11,7 +12,7 @@ import { useT } from 'src/composables/useT'
 
 const vTooltip = Tooltip
 const POLL_MS = 45000
-const ICON = { assigned: 'pi-user-plus', mentioned: 'pi-at', state: 'pi-sync', comment: 'pi-comment' }
+const ICON = { assigned: 'pi-user-plus', mentioned: 'pi-at', state: 'pi-sync', comment: 'pi-comment', failed: 'pi-times-circle', conflicts: 'pi-exclamation-triangle', stuck: 'pi-clock' }
 
 const t = useT()
 const router = useRouter()
@@ -21,13 +22,15 @@ const items = ref([])
 const unread = ref(0)
 const loaded = ref(false)
 const failed = ref(false)
+const rulesOpen = ref(false)
 let timer
 
 const label = computed(() => (unread.value ? t('notifications.unread', { count: unread.value }) : t('notifications.title')))
 const shown = computed(() => (unread.value > 99 ? '99+' : String(unread.value)))
 const when = (value) => relativeShort(value, instance?.proxy?.$i18n?.locale)
-const headline = (item) => t(`notifications.reason_${item.reason}`, { actor: item.actor ?? '?', state: item.state ? t(`notifications.state_${item.state}`) : '' })
-const what = (item) => `${t(item.subject === 'mr' ? 'notifications.mr' : 'notifications.issue')} #${item.number}`
+const RUN_REASONS = ['failed', 'conflicts', 'stuck']
+const headline = (item) => RUN_REASONS.includes(item.reason) ? t(`notifications.run_${item.reason}_${item.state}`, { minutes: item.excerpt }) : t(`notifications.reason_${item.reason}`, { actor: item.actor ?? '?', state: item.state ? t(`notifications.state_${item.state}`) : '' })
+const what = (item) => item.subject === 'run' ? item.title : `${t(item.subject === 'mr' ? 'notifications.mr' : 'notifications.issue')} #${item.number}`
 
 const refresh = async () => {
   try {
@@ -106,7 +109,10 @@ onBeforeUnmount(() => clearInterval(timer))
       <div class="bell__panel" name="notifications-panel">
         <div class="bell__head">
           <span class="bell__title">{{ $t('notifications.title') }}</span>
-          <Button v-if="unread" text size="small" name="notifications-read-all" :label="$t('notifications.mark_all')" @click="readAll" />
+          <span>
+            <Button v-if="unread" text size="small" name="notifications-read-all" :label="$t('notifications.mark_all')" @click="readAll" />
+            <Button text rounded size="small" severity="secondary" icon="pi pi-cog" name="notifications-rules" :aria-label="$t('notifications.rules_title')" @click="rulesOpen = true" />
+          </span>
         </div>
         <p v-if="failed && !items.length" class="bell__empty" role="alert">{{ $t('notifications.load_failed') }}</p>
         <p v-else-if="loaded && !items.length" class="bell__empty" name="notifications-empty">{{ $t('notifications.empty') }}</p>
@@ -116,8 +122,9 @@ onBeforeUnmount(() => clearInterval(timer))
               <i class="pi bell__icon" :class="ICON[item.reason]" aria-hidden="true" />
               <span class="bell__text">
                 <span class="bell__line">{{ headline(item) }}</span>
-                <span class="bell__what"><strong>{{ what(item) }}</strong> {{ item.title }}</span>
-                <span v-if="item.excerpt && item.reason !== 'state'" class="bell__excerpt">{{ item.excerpt }}</span>
+                <span v-if="item.subject === 'run'" class="bell__what"><strong>{{ item.title }}</strong></span>
+                <span v-else class="bell__what"><strong>{{ what(item) }}</strong> {{ item.title }}</span>
+                <span v-if="item.excerpt && item.reason !== 'state' && item.reason !== 'stuck'" class="bell__excerpt">{{ item.excerpt }}</span>
                 <span class="bell__meta">{{ item.target?.name }} · {{ when(item.createdAt) }}</span>
               </span>
               <i v-if="!item.read" class="bell__dot" aria-hidden="true" />
@@ -127,6 +134,7 @@ onBeforeUnmount(() => clearInterval(timer))
         </ul>
       </div>
     </Popover>
+    <NotificationRulesDialog v-if="rulesOpen" @close="rulesOpen = false" />
   </div>
 </template>
 

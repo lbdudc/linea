@@ -23,6 +23,8 @@ const instance = getCurrentInstance()
 
 const kind = ref('all')
 const search = ref('')
+const from = ref('')
+const to = ref('')
 const KINDS = ['all', 'generation', 'sync']
 const STATE_OF_OUTCOME = { success: 'ok', warning: 'wait', error: 'bad', cancelled: 'stop' }
 const pad = (n) => String(n).padStart(2, '0')
@@ -35,6 +37,8 @@ const rows = computed(() => {
   const q = search.value.trim().toLowerCase()
   return props.runs.filter((run) => (kind.value === 'all' || run.kind === kind.value)
     && (!props.day || dayOfRun(run.at) === props.day)
+    && (!from.value || (dayOfRun(run.at) ?? '') >= from.value)
+    && (!to.value || (dayOfRun(run.at) ?? '9999') <= to.value)
     && (!props.outcome || run.state === STATE_OF_OUTCOME[props.outcome])
     && (!props.status || run.state === props.status)
     && (!q || `${run.productName ?? ''} ${run.lineName ?? ''}`.toLowerCase().includes(q)))
@@ -81,6 +85,11 @@ const versionText = (run) => (run.version ? (run.kind === 'sync' ? `= v${run.ver
           v-for="s in STATUSES" :key="s" type="button" class="activity__chip" :class="{ 'activity__chip--on': status === s }" :aria-pressed="status === s" :name="`activity-status-${s}`"
           @click="emit('update:status', status === s ? null : s)"
         >{{ $t(`cicdview.status_${s}`) }}</button>
+      </div>
+      <div class="activity__dates" role="group" :aria-label="$t('cicdview.date_range')">
+        <label>{{ $t('cicdview.date_from') }}<input v-model="from" type="date" :max="to || undefined" name="activity-from"></label>
+        <label>{{ $t('cicdview.date_to') }}<input v-model="to" type="date" :min="from || undefined" name="activity-to"></label>
+        <button v-if="from || to" type="button" class="activity__clear" name="activity-dates-clear" @click="from = ''; to = ''">{{ $t('cicdview.clear_narrowing') }}</button>
       </div>
       <div class="activity__tools">
         <PrimeButton
@@ -144,6 +153,9 @@ const versionText = (run) => (run.version ? (run.kind === 'sync' ? `= v${run.ver
 .activity__chip { padding: 2px 12px; border: 1px solid var(--card-border); border-radius: 99px; background: var(--card-bg); font: inherit; font-size: 0.75rem; color: var(--text-muted); cursor: pointer; }
 .activity__chip--on { background: var(--p-highlight-soft); border-color: var(--p-primary-color); color: var(--p-primary-color); }
 .activity__search { width: 180px; }
+.activity__dates { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-muted); flex-wrap: wrap; }
+.activity__dates label { display: flex; align-items: center; gap: 4px; }
+.activity__dates input { font: inherit; padding: 1px 6px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--card-bg); color: inherit; }
 .activity__tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .activity__actions { display: inline-flex; align-items: center; gap: 2px; justify-content: flex-end; }
 .activity__narrow { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-size: 0.75rem; color: var(--text-muted); }

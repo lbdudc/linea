@@ -2,6 +2,7 @@ import { Container } from 'typedi';
 import ProductService from '../ProductService.js';
 import UserService from '../UserService.js';
 import SyncScheduler from './SyncScheduler.js';
+import CicdAlertService from '../CicdAlertService.js';
 
 let scheduler = null;
 
@@ -24,5 +25,6 @@ export const syncScheduler = () => (scheduler ??= new SyncScheduler({
 export const startScheduler = () => {
   if (process.env.LINEA_SCHEDULER === 'off' || process.env.VITEST) return null;
   syncScheduler().start();
+  Container.get(CicdAlertService).start();
   return syncScheduler();
 };
