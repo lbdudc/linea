@@ -1,0 +1,13 @@
+{
+  "name": "advanced-operations-module",
+  "version": "0.1.0",
+  "description": "The advanced operations of the calculator: divide, power and square root; divide and square root need decimal numbers",
+  "requires": {
+    "modules": {
+      "../basic-module": "^0.1.0",
+      "../capabilities-module": "^0.1.0"
+    },
+    "metamodels": {}
+  },
+  "offers": {}
+}

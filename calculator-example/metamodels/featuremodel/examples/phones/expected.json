@@ -1,0 +1,42 @@
+{
+  "features": [
+    "Phones",
+    "Screen",
+    "Oled",
+    "Battery",
+    "Camera",
+    "Rear",
+    "Gps"
+  ],
+  "data": {
+    "basicData": {
+      "name": "Phones",
+      "index": {
+        "component": "STATIC",
+        "view": "welcome"
+      },
+      "languages": [
+        "en",
+        "es"
+      ],
+      "packageInfo": {
+        "artifact": "phones",
+        "group": "es.udc.lbd.gisspl"
+      },
+      "SRID": "4326",
+      "database": {}
+    },
+    "dataModel": {},
+    "gui": {
+      "settings": {
+        "header": {
+          "type": "Text",
+          "text": "Phones"
+        }
+      }
+    },
+    "forms": [],
+    "lists": [],
+    "menus": []
+  }
+}

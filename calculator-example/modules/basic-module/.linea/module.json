@@ -1,0 +1,10 @@
+{
+  "name": "basic-module",
+  "version": "0.1.0",
+  "description": "The calculator every product is: display, numeric keyboard, clear, and the REST service that the operations fill in",
+  "requires": {
+    "modules": {},
+    "metamodels": {}
+  },
+  "offers": {}
+}

@@ -1,0 +1,6 @@
+features
+	basic_operations {abstract}
+		optional
+			add
+			subtract
+			multiply

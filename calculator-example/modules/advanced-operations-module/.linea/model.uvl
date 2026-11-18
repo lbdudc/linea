@@ -1,0 +1,10 @@
+features
+	advanced_operations {abstract}
+		optional
+			divide
+			power
+			square_root
+
+constraints
+	divide => decimal
+	square_root => decimal

@@ -1,0 +1,9 @@
+{
+  "name": "project-calculator",
+  "version": "1.0.0",
+  "kind": "project",
+  "metamodels": {
+    "gitlab:linea/metamodels/featuremodel": "^1.0.0"
+  },
+  "modules": {}
+}

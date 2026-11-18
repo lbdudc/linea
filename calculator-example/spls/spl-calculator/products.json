@@ -1,0 +1,9 @@
+{
+  "productos": [
+    {
+      "name": "spl-calculator-product",
+      "repositorio": "linea/spls/spl-calculator/spl-calculator-product/spl-calculator-product",
+      "version": "0.0.0"
+    }
+  ]
+}
