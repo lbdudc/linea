@@ -1,4 +1,4 @@
-# linea/server
+# apps/server
 
 API HTTP de LINEA: líneas de producto, productos, usuarios (OAuth de GitLab +
 JWT), integración con GitLab (`gitlab-commando`), MongoDB y Socket.IO.

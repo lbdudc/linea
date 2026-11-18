@@ -60,11 +60,11 @@ history straight into Mongo (`--clean` removes it). All of them are additive; re
 
 ## Smoke test
 
-With the four processes running, `npm run dev:smoke` (in `server/`) walks the whole thing through the HTTP API.
+With the four processes running, `npm run dev:smoke` (in `apps/server/`) walks the whole thing through the HTTP API.
 
 ## Using your real GitLab instead
 
-Skip steps 2 and the variable overrides, and use the values in `server/.env`. Metamodels carry scripts that run inside the server
+Skip steps 2 and the variable overrides, and use the values in `apps/server/.env`. Metamodels carry scripts that run inside the server
 and are **not sandboxed**: set `LINEA_TRUSTED_NAMESPACES=group/subgroup,other` to only load packages from GitLab paths you trust.
 Give a GitLab project the topic `linea-module` or `linea-metamodel` and tag versions `vX.Y.Z` to publish it by hand.
 

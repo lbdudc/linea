@@ -10,11 +10,11 @@ LINEA is a **core**, **configuration** and **plugins**, and each thing belongs t
 | **Configuration** | Choosing or tuning one of several ways to do a job the core needs: **which git hosts** (local, GitLab, GitHub) and their credentials, the primary host, where the repositories are, the registry, administrators, webhooks | Read at start from `linea.config.yml` or the environment; an administrator can change what the file does not lock (Settings → Git hosts) |
 | **Plugin** | An optional capability that adds surface (routes, pages, slots, nav) and often a service of its own | LINEA is complete without it, and it can be switched on and off while running |
 
-Rules that tests enforce (`server/src/test/boundary.test.js`): the core never names a plugin; a plugin imports only what the host gives it (`ctx`, `ctx.services`, `ui`, the shared packages) and never another plugin; an extension point exists only while some plugin uses it.
+Rules that tests enforce (`apps/server/src/test/boundary.test.js`): the core never names a plugin; a plugin imports only what the host gives it (`ctx`, `ctx.services`, `ui`, the shared packages) and never another plugin; an extension point exists only while some plugin uses it.
 
 ```
-LINEA/
-├── linea/                         the core
+linea/                             this repository (the monorepo)
+├── apps/
 │   ├── server/
 │   │   ├── index.js               entry point: mounts routers (and /git), connects the DB, migrates it, loads the git hosts and the plugins
 │   │   └── src/
@@ -24,14 +24,22 @@ LINEA/
 │   │       └── rest/              routers, controllers, validators, common (auth...)
 │   └── client/
 │       └── src/                   pages (lines, products, modules, git hosts, users, plugins), plugins/ (what plugins add: nav, routes, slots)
-├── plugins/
-│   ├── marketplace.json           the catalog
-│   ├── analytics-plugin/          flamapy analysis: server routes, UI panels, and service/ (the Python service)
-│   ├── agents-plugin/             the AI agents (service/ is the linea-agents repo, deployed apart; ../linea-agents links to it)
-│   ├── module-code-editor/        the Code tab of a module: file editor, models of its metamodels, derivation compared run by run, code insertion points
-│   └── spl-code-editor/           the Code tab of simple SPLs: file editor, feature<->code annotations, trial derivation (its own repo, linea/plugins/spl-code-editor)
-├── linea-core/  linea-git/        libraries (offline engine; the git hosts: local, GitLab, GitHub)
-└── linea-agents -> plugins/agents-plugin/service
+├── packages/                      published to npm as @lbdudc/*
+│   ├── core/                      the offline engine: SPLs, modules, metamodels, derivation
+│   ├── git/                       the git hosts: local, GitLab, GitHub; the registry of packages; the hosts in memory for tests
+│   ├── ci/                        the CI steps for SPLs and products
+│   ├── cli/                       the `linea` command line
+│   └── sdk/                       what a plugin imports
+├── deploy/  docs/  e2e/  scripts/
+
+linea-plugins/                     another repository, next to this one (PLUGINS_DIR)
+├── marketplace.json               the catalog
+├── analytics-plugin/              flamapy analysis: server routes, UI panels, and service/ (the Python service)
+├── agents-plugin/                 the AI agents (service/ is deployed apart and reaches LINEA through the REST API)
+├── spl-code-editor/               the Code tab of simple SPLs: file editor, feature<->code annotations, trial derivation
+└── mcp-plugin/                    the MCP server for AI clients
+
+linea-metamodels/                  another repository, next to this one (LINEA_METAMODELS_DIR)
 ```
 
 The contract between LINEA and a plugin (manifest, `ctx`, `ui`, the service protocol, health) is in [plugins.md](plugins.md).
@@ -94,7 +102,7 @@ The client fires `/analyze` first, renders results, then fires `/analyze/bdd` in
 
 ### Key Boundary Rule
 
-LINEA knows nothing about the AI agents subsystem (`linea-agents`, a separate deploy). It reaches LINEA only through the REST API, and `ProductService.generateProduct` emits `DOMAIN_EVENTS.PRODUCT_GENERATED` on `domainEvents`; `domainEventBridge.js` forwards it (and `git:pushed`, a push to a repository on any host), signed, to the URLs in `EVENT_WEBHOOK_URLS` and to the `remote.events` of the enabled plugins that have one.
+LINEA knows nothing about the AI agents subsystem (the agents plugin's `service/`, a separate deploy). It reaches LINEA only through the REST API, and `ProductService.generateProduct` emits `DOMAIN_EVENTS.PRODUCT_GENERATED` on `domainEvents`; `domainEventBridge.js` forwards it (and `git:pushed`, a push to a repository on any host), signed, to the URLs in `EVENT_WEBHOOK_URLS` and to the `remote.events` of the enabled plugins that have one.
 
 ---
 

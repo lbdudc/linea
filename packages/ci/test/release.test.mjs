@@ -16,7 +16,13 @@ const run = async (cwd, ...argv) => {
 
 describe('commit-lint and release-tag', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ci-release-'))
-  after(() => fs.rmSync(tmp, { recursive: true, force: true }))
+  // commit-lint reads these when it is not given the title or the range: set in a GitLab merge request pipeline, they would reach these tests
+  const inherited = Object.fromEntries(['CI_MERGE_REQUEST_TITLE', 'CI_MERGE_REQUEST_DIFF_BASE_SHA', 'CI_COMMIT_SHA'].map((name) => [name, process.env[name]]))
+  for (const name of Object.keys(inherited)) delete process.env[name]
+  after(() => {
+    for (const [name, value] of Object.entries(inherited)) if (value !== undefined) process.env[name] = value
+    fs.rmSync(tmp, { recursive: true, force: true })
+  })
 
   it('commit-lint warns by default and fails with --strict', async () => {
     const ok = await run(tmp, 'commit-lint', '--title', 'feat(ui)!: nueva portada')

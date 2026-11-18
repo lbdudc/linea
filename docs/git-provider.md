@@ -1,7 +1,7 @@
 # The git provider: LINEA on GitLab or on GitHub
 
 LINEA is deployed on **one** git host, GitLab or GitHub (`GIT_PROVIDER=gitlab|github`, `gitlab` by default). Everything LINEA needs from that
-host is one interface, `GitProvider`, in the library **`@lbdudc/linea-git`** (`linea-git/`). The library is used by the **server** and by the **CLI**; the
+host is one interface, `GitProvider`, in the library **`@lbdudc/linea-git`** (`packages/git/`). The library is used by the **server** and by the **CLI**; the
 services of the server only talk to it (a test, `gitBoundary.test.js`, fails if one imports `gitlab-commando` again).
 
 ```
@@ -14,7 +14,7 @@ CLI          clone/pull/push (git, with the user's own token), module list --rem
 What exists:
 
 - **The contract**: about 45 methods in neutral words (namespace, repository, change request) and neutral shapes (`Repository`, `Member`,
-  `RepositoryFile`...), typed in `linea-git/src/provider.ts` and listed in `GIT_PROVIDER_METHODS`.
+  `RepositoryFile`...), typed in `packages/git/src/provider.ts` and listed in `GIT_PROVIDER_METHODS`.
 - **`GitLabProvider`** and **`GitHubProvider`** (with `GitHubClient`: ETag, wait-and-retry on rate limits, errors in LINEA's terms). Configuration is
   passed in (`GitConfig`), never read from the environment inside them; `gitConfigFromEnv` is how the server builds it.
 - **The registry** (`listPackages`, `createPackage`, `savePackageFile`, `publishPackage`, `publishFolder`) and the **package sources** linea-core
@@ -22,7 +22,7 @@ What exists:
 - **Git over HTTP, in memory too**: the two hosts of `@lbdudc/linea-git/testing` also speak git (`git clone`, `pull`, `push` against `<url>/<path>.git`, through
   `git http-backend`). A bare repository per project is kept in step with the in-memory one in both directions, and what a push brings is in the model
   before the push is answered, so the next REST call (open a merge request for the branch just pushed) sees it. The dev stack uses it, so the CLI's
-  `clone` and `push` can be tried on a laptop; `linea-git/test/git-http.test.ts` runs real git against both hosts.
+  `clone` and `push` can be tried on a laptop; `packages/git/test/git-http.test.ts` runs real git against both hosts.
 - **A contract test** (`@lbdudc/linea-git/contract`): the behaviour every provider has to have, host-neutral. It runs against the in-memory GitLab
   and the in-memory GitHub (`@lbdudc/linea-git/testing`), plus the tests that are GitHub-only (namespaces, name collisions, access of someone who
   can only read, binary files, a branch that moves during a commit, pipeline statuses, rate limits, ETags). **A new provider is done when it passes the

@@ -1,4 +1,4 @@
-# linea/client
+# apps/client
 
 Front de LINEA: Vue 3 + PrimeVue 4 sobre Vite. El build sale en `dist/`.
 

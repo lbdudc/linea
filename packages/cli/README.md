@@ -250,4 +250,4 @@ bun run build        # dist/index.js, what `linea` runs
 
 The tests that touch git run the real `git`; the LOCAL ones stub `fetch` to throw, so a stray network call fails them.
 `@lbdudc/linea-git/testing` serves an in-memory GitLab and GitHub that also speak git over HTTP, which is what the dev stack
-(`linea/server/dev`) uses, so `get` and `push` can be tried against it without a real host.
+(`apps/server/dev`) uses, so `get` and `push` can be tried against it without a real host.
