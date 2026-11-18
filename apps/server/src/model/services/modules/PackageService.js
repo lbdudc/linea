@@ -1,5 +1,5 @@
 import {
-  createPackage, getPackage, listPackages, listRegisteredPackages, publishPackage, readManifest, readPackageFile, savePackageFile, savePackageFiles, packageRepository,
+  createPackage, getPackage, listPackages, listRegisteredPackages, previewPublication, publishPackage, readManifest, readPackageFile, savePackageFile, savePackageFiles, packageRepository,
   KIND_DEFINITIONS, KINDS, locationOf, ACCESS,
 } from '@lbdudc/linea-git';
 import { LineaCoreError } from '@lbdudc/linea-core';
@@ -14,6 +14,9 @@ import { checkWorkingCopy } from './packageCheck.js';
 import { readStudio } from './studio.js';
 import { checkModuleTrial, deriveModuleTrial, describeModuleTrial, sourceWithChanges } from './packageTrial.js';
 import { packageLists } from './packageLists.js';
+import { buildChecklist } from './packageChecklist.js';
+import { instance } from '../../../config/instanceSettings.js';
+import User from '../../entities/user.js';
 
 export { KINDS };
 
@@ -170,13 +173,20 @@ export default class PackageService {
     const provider = getGitProvider({ host });
     const repository = await packageRepository({ provider, token, kind, id });
     const location = locationOf({ kind: provider.kind, path: repository.path });
+    const publishRule = instance('modulesPublish');
+    const canPublish = publishRule !== 'admins' || Boolean(await User.exists({ _id: userId, admin: true }));
     let manifest;
     try {
       manifest = await readManifest({ provider, token, kind, id });
     } catch (error) {
-      return { ok: false, diagnostics: [{ severity: 'error', package: location, file: KIND_DEFINITIONS[kind].manifest, message: error.message }], metamodels: [], featureModel: '', resolved: [] };
+      const diagnostics = [{ severity: 'error', package: location, file: KIND_DEFINITIONS[kind].manifest, message: error.message }];
+      return { ok: false, diagnostics, metamodels: [], featureModel: '', resolved: [], checklist: buildChecklist({ manifestError: error.message, canPublish, publishRule }) };
     }
-    return checkWorkingCopy({ token, userId, kind, location, manifest });
+    const [report, preview] = await Promise.all([
+      checkWorkingCopy({ token, userId, kind, location, manifest }),
+      previewPublication({ provider, token, kind, id, version: manifest.version }).catch(() => null),
+    ]);
+    return { ...report, suggestedBump: preview?.suggestedBump ?? null, checklist: buildChecklist({ manifest, report, preview, canPublish, publishRule }) };
   };
 
   /**

@@ -34,9 +34,9 @@ export { repositoryFiles } from './packages/repository-files.js'
 export { KINDS, KIND_DEFINITIONS, pascal } from './registry/kinds.js'
 export type { KindDefinition, PackageKind } from './registry/kinds.js'
 export {
-  createPackage, getPackage, getPackageChangelog, isSafePath, listPackageChangelogs, listPackages, packageRepository, publishPackage, readManifest, readPackageFile, savePackageFile, savePackageFiles, upsertFiles, versionsOfTags
+  createPackage, getPackage, getPackageChangelog, isSafePath, listPackageChangelogs, listPackages, packageRepository, previewPublication, publishPackage, readManifest, readPackageFile, savePackageFile, savePackageFiles, upsertFiles, versionsOfTags
 } from './registry/packages.js'
-export type { PackageChangelog, PackageCheck, PackageDetail, PackageSummary } from './registry/packages.js'
+export type { PackageChangelog, PackageCheck, PackageDetail, PackageSummary, PublishPreview } from './registry/packages.js'
 export { assertPublishable, bumpWarning, suggestBump } from './registry/release.js'
 export type { BumpLevel } from './registry/release.js'
 export {

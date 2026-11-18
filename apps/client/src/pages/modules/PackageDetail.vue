@@ -68,7 +68,14 @@ const studioDirty = ref(false)
 
 const pluginTabs = computed(() => slotItems('package.tabs', { kind: props.kind, id: props.id, pkg: pkg.value }).map((item) => ({ ...item, key: pluginTabKey(item) })))
 const visitedPluginTabs = ref(new Set())
+const checklist = computed(() => report.value?.checklist ?? [])
+const blocking = computed(() => checklist.value.filter((entry) => entry.status === 'fail' && !(entry.id === 'version' && bump.value)))
+const ICONS = { pass: 'pi-check-circle', warn: 'pi-exclamation-triangle', fail: 'pi-times-circle' }
+const itemText = (entry) => t(`modules.cl_${entry.id}_${entry.status}`, {
+  version: entry.version, latest: entry.latest, count: entry.count, detail: entry.detail, suggested: entry.suggested ? t(`modules.bumplevel_${entry.suggested}`) : '', rule: entry.rule ? t(`modules.publish_rule_${entry.rule}`) : '',
+})
 watch(tab, (now) => {
+  if (now === 'release' && !report.value && !checking.value && pkg.value && !pkg.value.manifestError) check()
   if (pluginTabs.value.some((item) => item.key === now)) visitedPluginTabs.value = new Set([...visitedPluginTabs.value, now])
 })
 
@@ -430,13 +437,24 @@ onBeforeUnmount(() => {
               :label="$t('modules.publish')"
               icon="pi pi-cloud-upload"
               :loading="publishing"
-              :disabled="!!pkg.manifestError"
+              :disabled="!!pkg.manifestError || blocking.length > 0"
+              :title="blocking.length ? $t('modules.publish_blocked') : undefined"
+              name="package-publish"
               @click="publish"
             />
           </div>
         </Panel>
 
         <Message v-if="actionError" severity="error" :closable="false">{{ actionError }}</Message>
+
+        <Panel v-if="checklist.length" class="card package__checklist" :header="$t('modules.checklist')">
+          <ul role="list" class="package__checks" name="package-checklist">
+            <li v-for="entry in checklist" :key="entry.id" class="package__check" :class="`package__check--${entry.status}`" :data-check="entry.id" :data-status="entry.status">
+              <i class="pi" :class="ICONS[entry.status]" aria-hidden="true" />
+              <span>{{ itemText(entry) }}</span>
+            </li>
+          </ul>
+        </Panel>
 
         <template v-if="report">
           <Message :severity="report.ok ? 'success' : 'error'" :closable="false">
@@ -496,6 +514,12 @@ onBeforeUnmount(() => {
 .package__release-bar :deep(.p-panel-content) { display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; }
 .package__release-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .package__bump { width: 290px; }
+.package__checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.package__check { display: flex; align-items: flex-start; gap: 8px; font-size: 0.875rem; overflow-wrap: anywhere; }
+.package__check .pi { margin-top: 3px; }
+.package__check--pass .pi { color: var(--status-good, #2a9d6f); }
+.package__check--warn .pi { color: var(--status-warn, #d99a1b); }
+.package__check--fail .pi { color: var(--status-bad, #d33); }
 .package__release-hint { flex: 1 1 360px; margin: 0; font-size: 12px; color: var(--p-text-muted-color); max-width: 80ch; }
 .package__resolved ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(180px, max-content) max-content max-content; justify-content: start; align-items: center; gap: 6px 16px; font-size: 13px; }
 .package__resolved li { display: contents; }

@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { ModuleCheckError, ModuleManifestError, resolveSpl } from '@lbdudc/linea-core'
 import {
   GitHubClient, GitHubProvider, GitLabProvider, PackageNotFoundError, PackageVersionExistsError, PackageVersionInvalidError, clearGitHubCache,
-  assertPublishable, bumpWarning, createGitCatalog, createPackage, createPackageSource, getPackage, getPackageChangelog, listPackageChangelogs, suggestBump, listPackages, listRegisteredPackages, publishFolder, suggestPackages, publishPackage, readPackageFile, savePackageFile, savePackageFiles,
+  assertPublishable, bumpWarning, createGitCatalog, createPackage, createPackageSource, getPackage, getPackageChangelog, listPackageChangelogs, suggestBump, listPackages, listRegisteredPackages, publishFolder, suggestPackages, publishPackage, previewPublication, readPackageFile, savePackageFile, savePackageFiles,
   type GitConfig, type GitProvider
 } from '../src/index.js'
 import { startGithubDouble, startGitlabDouble } from '../src/testing/index.js'
@@ -168,6 +168,21 @@ for (const harness of harnesses) {
         const release = await host.provider().getRelease({ token, id, tag: 'v0.1.0' })
         expect(release).toMatchObject({ tag: 'v0.1.0', name: 'core v0.1.0' })
         expect(first.release?.tag).toBe('v0.1.0')
+      })
+
+      it('previews a publication without doing it: the version, the bump the commits imply and how much there is to release', async () => {
+        const id = (await createPackage({ provider: host.provider(), token, kind: 'module', name: 'core' })).id as number
+        const before = await previewPublication({ provider: host.provider(), token, kind: 'module', id, version: '0.1.0' })
+        expect(before).toMatchObject({ latest: null, versionError: null, suggestedBump: null, commitsSince: null, warnings: [] })
+        await publishPackage({ provider: host.provider(), token, kind: 'module', id, check: ok })
+        const again = await previewPublication({ provider: host.provider(), token, kind: 'module', id, version: '0.1.0' })
+        expect(again).toMatchObject({ latest: '0.1.0', commitsSince: 0 })
+        expect(again.versionError).toContain('already published')
+        await savePackageFile({ provider: host.provider(), token, kind: 'module', id, path: 'a.txt', content: 'a', message: 'feat(draw): add circles' })
+        const next = await previewPublication({ provider: host.provider(), token, kind: 'module', id, version: '0.1.1' })
+        expect(next).toMatchObject({ versionError: null, suggestedBump: 'minor', commitsSince: 1 })
+        expect(next.warnings).toEqual([expect.stringContaining('imply a minor one')])
+        expect((await listPackages({ provider: host.provider(), token, kind: 'module' }))[0]?.versions).toEqual(['0.1.0'])
       })
 
       it('puts the commits since the previous version in the release, by section, and warns when the version does not match them', async () => {

@@ -11,7 +11,7 @@ import { forgetPackageTags } from '../packages/gitlab-source.js'
 import type { GitHostKind, GitProvider, Id, Release, Repository } from '../provider.js'
 import { entryFor } from './catalog.js'
 import { KIND_DEFINITIONS, type PackageKind } from './kinds.js'
-import { createPackageRelease, preflight, tagOf, type BumpLevel, type Preflight } from './release.js'
+import { assertPublishable, bumpWarning, createPackageRelease, preflight, publishedVersions, suggestBump, tagOf, type BumpLevel, type Preflight } from './release.js'
 
 /**
  * The registry of modules and metamodels, on the git host: repositories with the topic `linea-module` or `linea-metamodel`, whose
@@ -239,6 +239,47 @@ export const savePackageFiles = async ({ provider, token, kind, id, files, messa
   }
   const commit = await upsertFiles({ provider, token, id, message: message ?? `Update ${paths.length === 1 ? paths[0] : `${paths.length} files`}`, files })
   return { paths, committed: commit !== null }
+}
+
+export interface PublishPreview {
+  /** The version the manifest on `main` has. */
+  version: string
+  /** The last version published (null: none yet). */
+  latest: string | null
+  /** Why `version` cannot be published (not semver, already published, lower than the last one); null when it can. */
+  versionError: string | null
+  /** The bump the commits since `latest` imply. */
+  suggestedBump: BumpLevel | null
+  /** How many commits `main` has since `latest` (null when there is no `latest`): what the release's changelog will list. */
+  commitsSince: number | null
+  warnings: string[]
+}
+
+/** What publishing `version` of a package would do, without doing it: whether the version may be published, the bump the commits imply and how much there is to release. */
+export const previewPublication = async ({ provider, token, kind, id, version }: Host & { kind: PackageKind, id: Id, version: unknown }): Promise<PublishPreview> => {
+  const file = KIND_DEFINITIONS[kind].manifest
+  const tags = await provider.listTags({ token, id })
+  const published = publishedVersions(tags)
+  const latest = published[0] ?? null
+  let versionError: string | null = null
+  try {
+    assertPublishable({ version, published, file })
+  } catch (error) {
+    versionError = (error as Error).message
+  }
+  const warnings: string[] = []
+  let suggested: BumpLevel | null = null
+  let commitsSince: number | null = null
+  if (latest !== null) {
+    const changes = await generateChangelog({ provider, token, id, from: tagOf(tags, latest), to: 'main' })
+    commitsSince = changes.commits.length
+    suggested = suggestBump(changes.commits)
+    if (versionError === null) {
+      const warning = bumpWarning({ latest, version: version as string, suggested })
+      if (warning) warnings.push(warning)
+    }
+  }
+  return { version: String(version), latest, versionError, suggestedBump: suggested, commitsSince, warnings }
 }
 
 export interface PackageCheck {
