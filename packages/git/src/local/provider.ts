@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process'
 import { PassThrough } from 'node:stream'
 import { ACCESS } from '../access.js'
 import type {
-  AuthConfig, Capabilities, ChangeRequest, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitProvider, Id, Issue, IssueChanges, IssueFilter, Label,
+  AccessEntry, AuthConfig, Capabilities, ChangeRequest, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitProvider, Id, Issue, IssueChanges, IssueFilter, HostUser, Label,
   Member, MergeOptions, MergeRequest, MergeRequestChanges, MergeRequestFilter, Milestone, Namespace, Page, Pipeline, PipelineJob, Release, ReleaseChanges, Repository, RepositoryFile, Template, TemplateKind, Thread, Tokens, PendingDeletion
 } from '../provider.js'
 import { closingIssueNumbers } from '../closing.js'
@@ -447,6 +447,28 @@ export class LocalProvider implements GitProvider {
     const members = new Map<string, number>([[record.owner, ACCESS.OWNER]])
     for (const member of record.members) members.set(member.username, member.accessLevel)
     return [...members].map(([username, accessLevel]) => ({ username, accessLevel }))
+  }
+
+  async listAccess({ token, id }: { token: string, id: Id }): Promise<AccessEntry[]> {
+    return (await this.getMembers({ token, id })).map((member) => ({ ...member, source: 'direct' as const }))
+  }
+
+  async setAccess({ token, id, username, accessLevel }: { token: string, id: Id, username: string, accessLevel: number }): Promise<void> {
+    await this.setMember({ token, id, username, accessLevel })
+  }
+
+  async removeAccess({ token, id, username }: { token: string, id: Id, username: string }): Promise<void> {
+    await this.removeMember({ token, id, username })
+  }
+
+  /** The names this host has seen as owners and members (the accounts are the server's: it searches them itself). */
+  async searchUsers({ token, query }: { token: string, query: string }): Promise<HostUser[]> {
+    await this.user(token)
+    const state = await this.store.read((current) => current)
+    const names = new Set<string>()
+    for (const repository of state.repositories) { names.add(repository.owner); for (const member of repository.members) names.add(member.username) }
+    const needle = query.trim().toLowerCase()
+    return [...names].filter((name) => name.toLowerCase().includes(needle)).slice(0, 10).map((username) => ({ username, name: username, avatarUrl: null }))
   }
 
   async getAccessLevel({ token, id, username }: { token: string, id: Id, username: string }): Promise<number> {

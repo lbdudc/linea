@@ -73,7 +73,7 @@
         outlined size="small" severity="secondary"
         name="product-sync"
         :loading="syncing"
-        :disabled="Boolean(loadError) || syncing || lineDeleted"
+        :disabled="Boolean(loadError) || syncing || lineDeleted || lacksWrite"
         :label="$t('automation.sync_now')"
         :aria-label="$t('automation.sync_now')"
         v-tooltip.bottom="lineDeleted ? $t('labels.product_unmaintained') : $t('automation.sync_tooltip')"
@@ -103,7 +103,7 @@
           :product-name="productData.spec?.basicData?.name"
           :version="productData.spec?.basicData?.version"
           :loading="loadingGenerationButton"
-          :disabled="Boolean(loadError) || lineDeleted"
+          :disabled="Boolean(loadError) || lineDeleted || lacksWrite"
           :blocked="Boolean(productData?.spec) && (changes || dirtyModels.length > 0)"
           :issues="generationIssues"
           :pending="productData.deployment?.pending === true"
@@ -223,16 +223,17 @@
             :version="productData.deployment?.version ?? null"
             :pending="productData.deployment?.pending === true"
             :next-version="nextGenerationVersion"
-            :disabled="Boolean(loadError) || lineDeleted"
+            :disabled="Boolean(loadError) || lineDeleted || lacksWrite"
             @generate="$refs.generateButton?.open()"
             @diff="openDiff"
           />
+          <p v-if="lacksWrite" class="level-note" data-test="level-note" role="note"><i class="pi pi-lock" aria-hidden="true" /> {{ $t('access.needDeveloper', { level: levelWord }) }}</p>
           <SyncCard
             :automation="syncAutomation"
             :last-run="lastSyncRun"
             :syncing="syncing"
             :loading="syncLoading"
-            :disabled="Boolean(loadError) || lineDeleted"
+            :disabled="Boolean(loadError) || lineDeleted || lacksWrite"
             @sync="askSync"
             @configure="openAutomation"
           />
@@ -334,7 +335,10 @@
               +{{ productData.members.length - 7 }}
             </span>
           </div>
+          <Tag v-if="productData.myLevel" :value="`${$t('access.yourRole')}: ${$t(`labels.role${productData.myLevel}`)}`" :severity="productData.myLevel >= 40 ? 'success' : 'secondary'" data-test="my-role" />
+          <Button icon="pi pi-key" size="small" text :label="$t('access.open')" name="open-access" data-test="open-access" @click="showAccess = true" />
         </div>
+        <AccessDialog v-if="showAccess" :id="String(productData._id ?? $route.params.id)" scope="product" :line-id="String(productData.lineId)" @close="showAccess = false" />
 
        </div>
 
@@ -942,6 +946,7 @@ import Skeleton from 'primevue/skeleton';
 import Tag from 'primevue/tag';
 import Badge from 'primevue/badge';
 import Avatar from 'primevue/avatar';
+import AccessDialog from 'components/line/AccessDialog.vue';
 import Tabs from 'primevue/tabs';
 import TabList from 'primevue/tablist';
 import Tab from 'primevue/tab';
@@ -973,6 +978,7 @@ const ProductModelsEditor = defineAsyncComponent(() => import('src/components/mo
 export default {
   name: 'ProductDetail',
   components: {
+    AccessDialog,
     ApplyConfigurationDialog,
     SyncPreviewDialog,
     GitLabButton,
@@ -1024,6 +1030,7 @@ export default {
   },
   data() {
     return {
+      showAccess: false,
       tab: 'overview',
       modelSubTab: null,
       // the sections of the Configuration tab: the models, and how the product generates and syncs
@@ -1131,6 +1138,14 @@ export default {
     };
   },
   computed: {
+    // a person who can only read the repository cannot generate or sync: the run would fail at its end, so it is off from the start
+    lacksWrite() {
+      const level = this.productData?.myLevel;
+      return typeof level === 'number' && level < 30;
+    },
+    levelWord() {
+      return this.$t(`labels.role${this.productData?.myLevel}`);
+    },
     lineDeleted() {
       return Boolean(this.productData?.line?.deleted || this.preview?.lineDeleted);
     },
@@ -2752,6 +2767,8 @@ export default {
   }
   &__count--ghost { visibility: hidden; }
 }
+
+.level-note { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 0.8rem; color: var(--text-muted); }
 
 .members-strip {
   display: flex;

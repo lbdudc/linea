@@ -9,6 +9,8 @@ import { changelogRangeValidator } from '../validators/changelogValidators.js';
 import ChangelogController from '../controllers/ChangelogController.js';
 import { createProductValidator, updateProductValidator, renameProductValidator, generateProductValidator, discardSavedValidator, productVersionValidator, generateZipValidator, productCiRunnersValidator, productMergeRequestValidator, productUpdateDecisionValidator, productJobValidator, productAutomationValidator } from '../validators/productValidators.js';
 import ProductController from '../controllers/ProductController.js';
+import AccessController from '../controllers/AccessController.js';
+import { productAccessValidator, accessParamValidator } from '../validators/accessValidators.js';
 import AutomationController from '../controllers/AutomationController.js';
 import { hostQueryValidator, restoreValidator } from '../validators/lineValidators.js';
 import { saveProductSelectionValidator, saveProductModelValidator, saveProductLayoutsValidator, checkProductModelsValidator } from '../validators/productModelValidators.js';
@@ -26,6 +28,10 @@ productRouter.post('/restore', requireAuth, restoreValidator, productController.
 // Must stay above '/:id'.
 // project ids are only unique on a host: `?host=` says which one (the primary host without it)
 productRouter.get('/by-git-project/:projectId', requireAuth, hostQueryValidator, productController.findByGitProject);
+const access = Container.get(AccessController);
+productRouter.get('/:id/access', requireAuth, access.product);
+productRouter.put('/:id/access/:username', requireAuth, productAccessValidator, access.setProduct);
+productRouter.delete('/:id/access/:username', requireAuth, accessParamValidator, access.clearProduct);
 productRouter.get('/status', requireAuth, productController.getProductsStatus);
 productRouter.get('/summary', requireAuth, productController.getProductsSummary);
 productRouter.get('/deletable', requireAuth, productController.getProductsDeletable);

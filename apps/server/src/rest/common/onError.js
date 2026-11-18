@@ -73,6 +73,9 @@ const codeErrorHandlers = {
     MEMBERS_ON_HOST: (res, err) => {
       res.status(409).json({ error: 'error_messages.members_on_host', detail: err.message });
     },
+    ACCESS_LEVEL: (res, err) => {
+      res.status(400).json({ error: 'error_messages.access_level', detail: err.message });
+    },
     TOO_MANY_ATTEMPTS: (res, err) => {
       res.status(429).json({ error: 'error_messages.too_many_attempts', detail: err.message });
     },

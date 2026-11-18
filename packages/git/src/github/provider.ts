@@ -1,8 +1,9 @@
 import crypto from 'node:crypto'
 import type {
-  AuthConfig, Capabilities, ChangeRequest, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitProvider, Id, Issue, IssueChanges, IssueFilter, Label, Member,
+  AccessEntry, AuthConfig, Capabilities, ChangeRequest, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitProvider, Id, Issue, IssueChanges, IssueFilter, HostUser, Label, Member,
   MergeOptions, MergeRequest, MergeRequestChanges, MergeRequestFilter, Milestone, Namespace, Page, Pipeline, PipelineJob, Release, ReleaseChanges, Repository, RepositoryFile, Template, TemplateKind, Thread, Tokens, PendingDeletion
 } from '../provider.js'
+import { ACCESS } from '../access.js'
 import { readRepositoryTemplates } from '../templates.js'
 import { GitAuthError, GitError } from '../errors.js'
 import { GitHubClient } from './client.js'
@@ -328,6 +329,35 @@ export class GitHubProvider implements GitProvider {
   /** What the user of `token` may do on a repository (GitHub answers for the token's own user, whoever `username` is). */
   async getAccessLevel({ token, id }: { token: string, id: Id, username: string }): Promise<number> {
     return accessLevelOf((await this.repoJson(token, id)).permissions)
+  }
+
+  async listAccess({ token, id }: { token: string, id: Id }): Promise<AccessEntry[]> {
+    const repo = await this.repoJson(token, id)
+    const path = `/repos/${repo.full_name}/collaborators`
+    const [everybody, direct] = await Promise.all([
+      this.client.paginate({ token, path: `${path}?affiliation=all` }),
+      this.client.paginate({ token, path: `${path}?affiliation=direct` })
+    ])
+    const own = new Set(direct.map((member) => member.login as string))
+    return everybody
+      .map((member) => ({ username: member.login as string, accessLevel: LEVELS[member.role_name as string] ?? accessLevelOf(member.permissions), source: own.has(member.login as string) ? 'direct' as const : 'inherited' as const }))
+      .filter((entry) => entry.accessLevel >= ACCESS.REPORTER)
+  }
+
+  async setAccess({ token, id, username, accessLevel }: { token: string, id: Id, username: string, accessLevel: number }): Promise<void> {
+    const repo = await this.repoJson(token, id)
+    const permission = accessLevel >= ACCESS.OWNER ? 'admin' : accessLevel >= ACCESS.MAINTAINER ? 'maintain' : accessLevel >= ACCESS.DEVELOPER ? 'push' : 'pull'
+    await this.json(token, `/repos/${repo.full_name}/collaborators/${encodeURIComponent(username)}`, { method: 'PUT', body: { permission } })
+  }
+
+  async removeAccess({ token, id, username }: { token: string, id: Id, username: string }): Promise<void> {
+    const repo = await this.repoJson(token, id)
+    await this.json(token, `/repos/${repo.full_name}/collaborators/${encodeURIComponent(username)}`, { method: 'DELETE' })
+  }
+
+  async searchUsers({ token, query }: { token: string, query: string }): Promise<HostUser[]> {
+    const found = await this.json(token, `/search/users?q=${encodeURIComponent(query)}&per_page=10`)
+    return (found.items ?? []).map((user: Json) => ({ username: user.login, name: user.login, avatarUrl: user.avatar_url ?? null }))
   }
 
   // ── files, commits ───────────────────────────────────────────────────────

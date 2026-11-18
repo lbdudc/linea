@@ -29,6 +29,28 @@ export default {
     return (await api.delete(`/lines/${id}/members/${encodeURIComponent(username)}`)).data;
   },
 
+  /** Who reaches the line's repository on its git host, from where, and whether it is what LINEA recorded; LINEA writes changes to the line and its products. */
+  async getAccess(id) {
+    return (await api.get(`/lines/${id}/access`)).data;
+  },
+
+  async searchAccessUsers(id, q) {
+    return (await api.get(`/lines/${id}/access/users`, { params: { q } })).data;
+  },
+
+  /** `{ failures, access }`: the repositories the host refused, and the access as it is now. */
+  async setAccess(id, username, role) {
+    return (await api.put(`/lines/${id}/access/${encodeURIComponent(username)}`, { role })).data;
+  },
+
+  async removeAccess(id, username) {
+    return (await api.delete(`/lines/${id}/access/${encodeURIComponent(username)}`)).data;
+  },
+
+  async reapplyAccess(id, removeUnknown = false) {
+    return (await api.post(`/lines/${id}/access/reapply`, { removeUnknown })).data;
+  },
+
   /** What the products of the line inherit for syncing, and how many follow it, have their own, or are off. */
   async getSync(id) {
     return (await api.get(`/lines/${id}/sync`)).data;

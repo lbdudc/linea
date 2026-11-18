@@ -45,7 +45,11 @@ const appFetch = async ({ url, token, method, path, body, json = true, api = 'ap
     throw new GitLabError(failure.message ?? String(error))
   }
   if (!json) return res
-  if (res.ok) return await res.json()
+  if (res.ok) {
+    // a DELETE answers 204 with no body
+    const raw = await res.text()
+    return raw ? JSON.parse(raw) : null
+  }
   let detail: Json = {}
   try {
     const raw = await res.text()

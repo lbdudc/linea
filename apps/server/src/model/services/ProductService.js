@@ -2,7 +2,7 @@ import Product from "../entities/product.js"
 import { getGitProvider, primaryHost } from '../git/index.js';
 import { createdAtOf, correctProductDates } from './hostDates.js';
 import { deleteEmptyLineNamespace, deleteProductOnHost } from '@lbdudc/linea-git';
-import { activeHostOf, hostOf, tokenFor } from '../git/hosts.js';
+import { activeHostOf, hostOf, tokenFor, usernameOn } from '../git/hosts.js';
 import { properties } from '../connectors/properties.js'
 import { PermissionError, isLineDeleted, assertLineAlive, UserNotFoundError, AlreadyExistentProductError, LineNotFoundError, ProductNotFoundError, NoDeployedSnapshotError, NoPipelineError, NoPendingUpdateError, LinePlatformNotFoundError } from '../errors/errors.js';
 import { timed } from '../../rest/common/serverTiming.js';
@@ -363,7 +363,9 @@ export default class ProductService {
     // what is saved is compared as it is in the repository (what a generation records and the lists compare): composed from the
     // models it lacks what the generation added to it, and would never match the record
     const deployment = await timed('deployment', () => this.#deploymentOf({ token, product, deployed, spec: resolved.spec }));
-    return { product, members, line, deployment };
+    // what the person may do here: the level the host gives them (an administrator of LINEA is not limited by it)
+    const level = user.admin ? ACCESS.OWNER : (members.find((member) => member.username === usernameOn(user, hostOf(product)))?.accessLevel ?? 0);
+    return { product, members, line, deployment, level };
   };
 
   deleteProduct = async ({ id, userId }) => {

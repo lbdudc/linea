@@ -46,10 +46,11 @@ export default class ProductController {
       res.status(200).send(normalizeProductDefaults((await this.productService.findBrief({ id: req.params.id, userId: req.userId })).toObject()));
       return;
     }
-    const { product, members, line, deployment } = await this.productService.findProductDetails({ ...req.params, userId: req.userId });
+    const { product, members, line, deployment, level } = await this.productService.findProductDetails({ ...req.params, userId: req.userId });
 
     const productDto = normalizeProductDefaults(product.toObject());
     productDto.deployment = deployment;
+    productDto.myLevel = level;
     productDto.members = members.map((member) => ({ username: member.username, role: member.accessLevel ?? member.access_level }));
     productDto.line = { id: product.lineId, name: line?.deletedName ?? line?.name ?? null, modular: Boolean(line?.modular), kind: line?.kind, deleted: !line || Boolean(line.deletedAt) };
     productDto.delayedDeletion = this.lineService.deletesLater(product);

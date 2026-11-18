@@ -66,6 +66,9 @@ const productSchema = new mongoose.Schema({
     ref: 'Line',
     required: true
   },
+  // What this product gives a person apart from its line (`level` 0: no access to this product); the line's access reaches every product
+  // except where a person has an entry here.
+  access: { type: [{ _id: false, username: String, level: Number }], default: [] },
   // the git host of its line (see Line.gitHost)
   gitHost: {
     type: String,

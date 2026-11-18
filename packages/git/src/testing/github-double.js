@@ -282,6 +282,10 @@ export function createGithubDoubleApp(baseUrl = 'http://github.double') {
 
   // ── account ──────────────────────────────────────────────────────────────
   router.get('/user', (_req, res) => res.json({ login: state.user.login, id: state.user.id, avatar_url: '', type: 'User' }));
+  router.get('/search/users', (req, res) => {
+    const q = String(req.query.q ?? '');
+    res.json({ total_count: 1, items: q ? [{ login: q, avatar_url: null }] : [] });
+  });
   router.get('/users/:login', (req, res) => {
     const account = state.ownerOf(req.params.login);
     if (!account) return notFound(res);
@@ -362,7 +366,24 @@ export function createGithubDoubleApp(baseUrl = 'http://github.double') {
   router.get(`${R}/collaborators`, (req, res) => {
     const repo = repoOr404(req, res);
     if (!repo) return;
-    res.json(repo.collaborators.map((c) => ({ login: c.login, id: c.id, role_name: c.role, permissions: permissionsOf(c.role) })));
+    // `affiliation=direct` leaves out what comes from the organization (a collaborator marked `inherited`)
+    const list = req.query.affiliation === 'direct' ? repo.collaborators.filter((c) => !c.inherited) : repo.collaborators;
+    res.json(list.map((c) => ({ login: c.login, id: c.id, role_name: c.role, permissions: permissionsOf(c.role) })));
+  });
+  router.put(`${R}/collaborators/:user`, (req, res) => {
+    const repo = repoOr404(req, res);
+    if (!repo) return;
+    const role = { pull: 'read', push: 'write', maintain: 'maintain', admin: 'admin' }[req.body?.permission] ?? 'read';
+    const found = repo.collaborators.find((c) => c.login === req.params.user && !c.inherited);
+    if (found) { found.role = role; return res.status(204).end(); }
+    repo.collaborators.push({ login: req.params.user, id: 100 + repo.collaborators.length, role });
+    res.status(201).json({ id: 1, permissions: permissionsOf(role) });
+  });
+  router.delete(`${R}/collaborators/:user`, (req, res) => {
+    const repo = repoOr404(req, res);
+    if (!repo) return;
+    repo.collaborators = repo.collaborators.filter((c) => c.login !== req.params.user || c.inherited);
+    res.status(204).end();
   });
   router.get(`${R}/collaborators/:user/permission`, (req, res) => {
     const repo = repoOr404(req, res);

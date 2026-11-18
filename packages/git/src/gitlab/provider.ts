@@ -2,9 +2,10 @@ import crypto from 'node:crypto'
 import { Readable } from 'node:stream'
 import { GitLabAuthError, GitLabSession } from 'gitlab-commando'
 import type {
-  AuthConfig, Capabilities, ChangeRequest, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitProvider, Id, Issue, IssueChanges, IssueFilter, Label, Member,
+  AccessEntry, AuthConfig, Capabilities, ChangeRequest, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitProvider, Id, Issue, IssueChanges, IssueFilter, HostUser, Label, Member,
   MergeOptions, MergeRequest, MergeRequestChanges, MergeRequestFilter, Milestone, Namespace, Page, Pipeline, PipelineJob, Release, ReleaseChanges, Repository, RepositoryFile, Runner, Template, TemplateKind, Thread, Tokens, PendingDeletion
 } from '../provider.js'
+import { ACCESS } from '../access.js'
 import { readRepositoryTemplates } from '../templates.js'
 import { createGitLabClient, isBranchAlreadyExistsError, type GitLabClient } from './client.js'
 
@@ -314,6 +315,43 @@ export class GitLabProvider implements GitProvider {
   /** What the user may do on a repository: the level GitLab gives them there (inherited from the group included), 0 when none. */
   async getAccessLevel({ token, id, username }: { token: string, id: Id, username: string }): Promise<number> {
     return (await this.getMembers({ token, id })).find((member) => member.username === username)?.accessLevel ?? 0
+  }
+
+  async listAccess({ token, id }: { token: string, id: Id }): Promise<AccessEntry[]> {
+    const project = await this.client.getProject(token, id)
+    const [everybody, direct] = await Promise.all([
+      this.client.listPaged(token, `projects/${project.id}/members/all`),
+      this.client.listPaged(token, `projects/${project.id}/members`)
+    ])
+    const own = new Map<string, number>(direct.map((member: Json) => [member.username, member.access_level]))
+    return everybody
+      .filter((member: Json) => member.access_level >= ACCESS.REPORTER)
+      .map((member: Json) => ({ username: member.username, accessLevel: member.access_level, source: own.get(member.username) === member.access_level ? 'direct' as const : 'inherited' as const }))
+  }
+
+  async setAccess({ token, id, username, accessLevel }: { token: string, id: Id, username: string, accessLevel: number }): Promise<void> {
+    const project = await this.client.getProject(token, id)
+    const user = await this.userByName(token, username)
+    const direct = await this.client.listPaged(token, `projects/${project.id}/members`)
+    const exists = direct.some((member: Json) => member.id === user.id)
+    await this.client.send(token, exists ? 'PUT' : 'POST', `projects/${project.id}/members${exists ? `/${user.id}` : ''}`, exists ? { access_level: accessLevel } : { user_id: user.id, access_level: accessLevel })
+  }
+
+  async removeAccess({ token, id, username }: { token: string, id: Id, username: string }): Promise<void> {
+    const project = await this.client.getProject(token, id)
+    const user = await this.userByName(token, username)
+    await this.client.send(token, 'DELETE', `projects/${project.id}/members/${user.id}`).catch((error: { status?: number }) => { if (error.status !== 404) throw error })
+  }
+
+  async searchUsers({ token, query }: { token: string, query: string }): Promise<HostUser[]> {
+    const found = await this.client.get(token, `users?search=${encodeURIComponent(query)}&per_page=10&active=true`)
+    return found.map((user: Json) => ({ username: user.username, name: user.name ?? user.username, avatarUrl: user.avatar_url ?? null }))
+  }
+
+  private async userByName(token: string, username: string): Promise<Json> {
+    const found = await this.client.get(token, `users?username=${encodeURIComponent(username)}`)
+    if (!found[0]) throw Object.assign(new Error(`${username} is not a user of this GitLab`), { status: 404 })
+    return found[0]
   }
 
   // ── files, commits ───────────────────────────────────────────────────────

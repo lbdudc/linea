@@ -37,6 +37,9 @@ const lineSchema = new mongoose.Schema({
   repoId: {
     type: Number
   },
+  // The access LINEA gave on the git host (`{ username, level }`: 20 reporter .. 50 owner): what LINEA writes to the repositories of the
+  // line and its products, and what it compares the host with to see a change made there.
+  access: { type: [{ _id: false, username: String, level: Number }], default: [] },
   // The GitLab group that *is* this line — set once the group has been created
   // (or discovered). Never a parent/default: the parent is chosen per creation
   // and passed to LineService.createLine as `parentNamespaceId`.

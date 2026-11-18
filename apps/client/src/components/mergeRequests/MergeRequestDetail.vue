@@ -58,6 +58,8 @@ const busyThread = ref(false)
 const tab = computed(() => (route.query.mrtab === 'files' ? 'files' : 'conversation'))
 const setTab = (name) => router.replace({ query: { ...route.query, mrtab: name === 'files' ? 'files' : undefined } })
 const caps = computed(() => props.meta.capabilities.mergeRequests)
+// a person below Maintainer cannot merge on the host: the button says so before the host refuses
+const cannotMerge = computed(() => typeof props.meta.myLevel === 'number' && props.meta.myLevel < 40)
 const target = computed(() => ({ kind: props.kind, id: props.id, number: props.number }))
 const isOpen = computed(() => mr.value?.state === 'opened')
 // A generation's request is LINEA's business (CI/CD decides it). A sync's waits for a person (it was opened to be reviewed), so
@@ -237,7 +239,8 @@ const toCicd = () => router.push({ query: { tab: 'cicd' } })
                 </label>
                 <label class="mrd__opt mrd__opt--check"><Checkbox v-model="deleteBranch" binary input-id="mr-delete-branch" name="mr-delete-branch" /> <span>{{ $t('mrs.delete_branch') }}</span></label>
               </div>
-              <PrimeButton v-if="!mr.hasConflicts" :label="$t('mrs.merge')" icon="pi pi-share-alt" name="mr-merge-button" :loading="merging" @click="merge" />
+              <PrimeButton v-if="!mr.hasConflicts" :label="$t('mrs.merge')" icon="pi pi-share-alt" name="mr-merge-button" :loading="merging" :disabled="cannotMerge" @click="merge" />
+              <small v-if="cannotMerge && !mr.hasConflicts" class="mrd__level" data-test="merge-level-note">{{ $t('access.needMaintainer', { level: $t(`labels.role${meta.myLevel}`) }) }}</small>
             </template>
             <p v-else-if="mr.state === 'merged'" class="mrd__line"><i class="pi pi-check-circle" :style="{ color: 'var(--sync)' }" aria-hidden="true" /> {{ $t('mrs.merged_note', { when: ago(mr.mergedAt ?? mr.updatedAt), target: mr.targetBranch }) }}</p>
             <p v-else class="mrd__line"><i class="pi pi-times-circle" :style="{ color: 'var(--status-bad)' }" aria-hidden="true" /> {{ $t('mrs.closed_note') }}</p>

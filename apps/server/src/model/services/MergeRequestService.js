@@ -57,17 +57,19 @@ export default class MergeRequestService {
 
   /** What the pages need to draw their forms and filters: the host, what it can do, the labels and the branches to choose from. */
   getMeta = async (target) => {
-    const { git, host, token, projectId } = await this.#access(target);
+    const { git, host, token, projectId, actor } = await this.#access(target);
     const capabilities = git.capabilities();
-    const [labels, branches, repository, members, templates] = await Promise.all([
+    const [labels, branches, repository, members, templates, myLevel] = await Promise.all([
       capabilities.mergeRequests.labels ? git.listLabels({ token, id: projectId }).catch(() => []) : [],
       git.listBranches({ token, id: projectId }).catch(() => []),
       git.getRepository({ token, id: projectId }).catch(() => null),
       // the people of the repository: what the reviewers field proposes
       capabilities.mergeRequests.reviewers ? git.getMembers({ token, id: projectId }).catch(() => []) : [],
       templatesOf({ git, token, projectId, host, kind: 'mergeRequest' }),
+      // what the person may do here, so the merge button says why it is off
+      git.getAccessLevel({ token, id: projectId, username: actor.username }).catch(() => null),
     ]);
-    return { host, capabilities, labels, branches, members: members.map((member) => member.username), defaultBranch: repository?.defaultBranch ?? properties.git.defaultBranch, baseBranch: properties.git.baseBranch, templates };
+    return { host, capabilities, labels, branches, myLevel, members: members.map((member) => member.username), defaultBranch: repository?.defaultBranch ?? properties.git.defaultBranch, baseBranch: properties.git.baseBranch, templates };
   };
 
   list = async ({ filter = {}, origin = 'all', ...target }) => {

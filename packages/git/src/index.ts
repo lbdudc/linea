@@ -1,5 +1,5 @@
 export type {
-  AuthConfig, Capabilities, ChangeRequest, PendingDeletion, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitHostKind, GitProvider, Id, Issue, IssueChanges, IssueFilter, Label, Member, MergeOptions, MergeRequest, MergeRequestChanges, MergeRequestFilter, Milestone, Namespace, Page, Pipeline, PipelineJob, Release, ReleaseChanges, Repository, Runner, RepositoryFile, Template, TemplateKind, Thread, Tokens
+  AccessEntry, AuthConfig, Capabilities, ChangeRequest, HostUser, PendingDeletion, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitHostKind, GitProvider, Id, Issue, IssueChanges, IssueFilter, Label, Member, MergeOptions, MergeRequest, MergeRequestChanges, MergeRequestFilter, Milestone, Namespace, Page, Pipeline, PipelineJob, Release, ReleaseChanges, Repository, Runner, RepositoryFile, Template, TemplateKind, Thread, Tokens
 } from './provider.js'
 export { GIT_PROVIDER_METHODS } from './provider.js'
 export { GitAuthError, GitError, PackageNotAllowedError, PackageNotFoundError, PackageVersionExistsError, PackageVersionInvalidError } from './errors.js'

@@ -576,7 +576,38 @@ export function createGitlabDoubleApp(webBase = 'http://gitlab-double.local') {
   });
   router.get('/projects/:id/members/all', (req, res) => {
     const project = projectOr404(req, res);
-    if (project) res.status(200).json(project.members);
+    if (project) res.status(200).json(project.members.map(({ inherited, ...member }) => member));
+  });
+  // the members set on the project itself (a member with `inherited: true` comes from its group: only `/members/all` lists it)
+  router.get('/projects/:id/members', (req, res) => {
+    const project = projectOr404(req, res);
+    if (project) res.status(200).json(project.members.filter((member) => !member.inherited).map(({ inherited, ...member }) => member));
+  });
+  router.post('/projects/:id/members', (req, res) => {
+    const project = projectOr404(req, res);
+    if (!project) return;
+    const username = usernameOf(Number(req.body?.user_id));
+    if (project.members.some((member) => member.id === Number(req.body?.user_id) && !member.inherited)) return sendError(res, 409, 'Member already exists');
+    project.members = project.members.filter((member) => member.id !== Number(req.body?.user_id));
+    const member = { id: Number(req.body.user_id), username, access_level: Number(req.body.access_level) };
+    project.members.push(member);
+    res.status(201).json(member);
+  });
+  router.put('/projects/:id/members/:userId', (req, res) => {
+    const project = projectOr404(req, res);
+    if (!project) return;
+    const member = project.members.find((candidate) => candidate.id === Number(req.params.userId) && !candidate.inherited);
+    if (!member) return sendError(res, 404, '404 Not found');
+    member.access_level = Number(req.body.access_level);
+    res.status(200).json(member);
+  });
+  router.delete('/projects/:id/members/:userId', (req, res) => {
+    const project = projectOr404(req, res);
+    if (!project) return;
+    const at = project.members.findIndex((candidate) => candidate.id === Number(req.params.userId) && !candidate.inherited);
+    if (at < 0) return sendError(res, 404, '404 Not found');
+    project.members.splice(at, 1);
+    res.status(204).end();
   });
   router.get('/projects', (req, res) => {
     const perPageRaw = req.query.per_page;
@@ -1266,7 +1297,7 @@ export function createGitlabDoubleApp(webBase = 'http://gitlab-double.local') {
     return [project, issue];
   };
   // a user is any name: the double knows no accounts but `dev`
-  router.get('/users', (req, res) => res.json(req.query.username ? [userJson(String(req.query.username))] : []));
+  router.get('/users', (req, res) => res.json(req.query.username ? [userJson(String(req.query.username))] : req.query.search ? [userJson(String(req.query.search))] : []));
   router.get('/projects/:id/labels', (req, res) => { const project = projectOr404(req, res); if (project) res.json(project.labels); });
   router.post('/projects/:id/labels', (req, res) => {
     const project = projectOr404(req, res);

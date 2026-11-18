@@ -338,6 +338,22 @@ export const describeGitProviderContract = ({ name, makeProvider, addMember, sig
       }
     });
 
+    it('gives, changes, lists and takes away the access of a person, and finds people to give it to', async () => {
+      const git = makeProvider();
+      const { repository } = await repoIn(git);
+      await git.setAccess({ token, id: repository.id, username: 'ana', accessLevel: 30 });
+      let access = await git.listAccess({ token, id: repository.id });
+      expect(access).toContainEqual({ username: 'ana', accessLevel: 30, source: 'direct' });
+      await git.setAccess({ token, id: repository.id, username: 'ana', accessLevel: 40 });
+      access = await git.listAccess({ token, id: repository.id });
+      expect(access.filter((entry) => entry.username === 'ana')).toEqual([{ username: 'ana', accessLevel: 40, source: 'direct' }]);
+      await git.removeAccess({ token, id: repository.id, username: 'ana' });
+      expect((await git.listAccess({ token, id: repository.id })).map((entry) => entry.username)).not.toContain('ana');
+      const found = await git.searchUsers({ token, query: 'dev' });
+      expect(Array.isArray(found)).toBe(true);
+      for (const user of found) expect(typeof user.username).toBe('string');
+    });
+
     it('knows a webhook delivery from its host by the secret, and reads which branch was pushed', async () => {
       const git = makeProvider();
       const delivery = signWebhook({ body: { ref: 'refs/heads/bigbang' }, secret: 's3cret' });

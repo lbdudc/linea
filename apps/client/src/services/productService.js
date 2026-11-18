@@ -19,6 +19,21 @@ const zipOf = async (request) => {
 };
 
 export default {
+  /** Who reaches the product's repository, and what it gives apart from its line (`overrides`). */
+  async getAccess(id) {
+    return (await api.get(`/products/${id}/access`)).data;
+  },
+
+  /** `role` 0 closes the product to the person. */
+  async setAccess(id, username, role) {
+    return (await api.put(`/products/${id}/access/${encodeURIComponent(username)}`, { role })).data;
+  },
+
+  /** The product goes back to what its line gives the person. */
+  async clearAccess(id, username) {
+    return (await api.delete(`/products/${id}/access/${encodeURIComponent(username)}`)).data;
+  },
+
   async createProduct({name, version, lineId}) {
     return (await api.post('/products', {
       lineId,

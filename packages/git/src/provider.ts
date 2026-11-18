@@ -45,6 +45,22 @@ export interface Member {
   accessLevel: number
 }
 
+/** Who has access to a repository, at what level and where the access comes from. */
+export interface AccessEntry {
+  username: string
+  /** One of the four levels of LINEA: 20 reporter, 30 developer, 40 maintainer, 50 owner. */
+  accessLevel: number
+  /** `direct`: set on the repository itself; `inherited`: from the group or organization that holds it. */
+  source: 'direct' | 'inherited'
+}
+
+/** A person of a host, as `searchUsers` finds them. */
+export interface HostUser {
+  username: string
+  name: string
+  avatarUrl: string | null
+}
+
 export interface RepositoryFile {
   path: string
   name: string
@@ -454,6 +470,14 @@ export interface GitProvider {
   getMembers(args: { token: string, id: Id }): Promise<Member[]>
   /** The level of the user of `token` on the repository (0: none). */
   getAccessLevel(args: { token: string, id: Id, username: string }): Promise<number>
+  /** Everybody with access to the repository, each with the level and where it comes from (needs Maintainer to read the whole list). */
+  listAccess(args: { token: string, id: Id }): Promise<AccessEntry[]>
+  /** Gives a person a level (20, 30, 40 or 50) on the repository, or changes it. */
+  setAccess(args: { token: string, id: Id, username: string, accessLevel: number }): Promise<void>
+  /** Takes the access set on the repository itself from a person (one inherited from a group stays: it is the group's). */
+  removeAccess(args: { token: string, id: Id, username: string }): Promise<void>
+  /** People of the host whose username or name matches `query`. */
+  searchUsers(args: { token: string, query: string }): Promise<HostUser[]>
 
   // Files, commits, archives
   getFile(args: { token: string, id: Id, path: string, ref: string }): Promise<RepositoryFile>
@@ -578,7 +602,7 @@ export const GIT_PROVIDER_METHODS = [
   'authConfig', 'exchangeCode', 'refreshToken', 'getUser',
   'listNamespaces', 'findNamespace', 'createNamespace', 'deleteNamespace', 'renameNamespace',
   'createRepository', 'deleteRepository', 'listPendingDeletion', 'restoreRepository', 'restoreNamespace', 'renameRepository', 'getRepository', 'findRepository', 'listRepositories', 'addTopic',
-  'setDefaultBranch', 'getMembers', 'getAccessLevel',
+  'setDefaultBranch', 'getMembers', 'getAccessLevel', 'listAccess', 'setAccess', 'removeAccess', 'searchUsers',
   'getFile', 'getFileRevision', 'readFile', 'listFiles', 'createFile', 'saveFile', 'commit', 'downloadArchive', 'getCommits', 'compare',
   'createBranch', 'listBranches', 'getBranch', 'listTags', 'getTag', 'createTag',
   'createRelease', 'getRelease', 'listReleases', 'updateRelease',

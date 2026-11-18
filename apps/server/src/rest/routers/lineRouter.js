@@ -9,6 +9,8 @@ import { changelogRangeValidator } from '../validators/changelogValidators.js';
 import ChangelogController from '../controllers/ChangelogController.js';
 import { restoreValidator, deleteLineValidator, createLineValidator, memberParamValidator, memberValidator, hostQueryValidator, fromUvlValidator, planBranchCommitValidator, planBranchMergeValidator, saveFeatureModelValidator, tryDerivationValidator, trialModelsValidator, checkTrialModelsValidator } from '../validators/lineValidators.js';
 import LineController from '../controllers/LineController.js';
+import AccessController from '../controllers/AccessController.js';
+import { accessValidator, accessParamValidator } from '../validators/accessValidators.js';
 import { modulesControllers as modules } from './packageRouter.js';
 import { saveLineModulesValidator, checkLineModulesValidator } from '../validators/packageValidators.js';
 import { productVersionValidator as lineVersionValidator, lineSyncValidator } from '../validators/productValidators.js';
@@ -50,6 +52,13 @@ lineRouter.use('/:id/repo', repositoryRouter('line'));
 lineRouter.get('/:id/members', requireAuth, lineController.listMembers);
 lineRouter.put('/:id/members/:username', requireAuth, memberValidator, lineController.setMember);
 lineRouter.delete('/:id/members/:username', requireAuth, memberParamValidator, lineController.removeMember);
+// who reaches the repositories of the line and of its products on the git host, and what LINEA writes there
+const access = Container.get(AccessController);
+lineRouter.get('/:id/access', requireAuth, access.line);
+lineRouter.get('/:id/access/users', requireAuth, access.users);
+lineRouter.post('/:id/access/reapply', requireAuth, access.reapplyLine);
+lineRouter.put('/:id/access/:username', requireAuth, accessValidator, access.setLine);
+lineRouter.delete('/:id/access/:username', requireAuth, accessParamValidator, access.removeLine);
 lineRouter.get('/:id/versions', requireAuth, lineController.listVersions);
 lineRouter.get('/:id/versions/:version', requireAuth, lineVersionValidator, lineController.getVersion);
 // the release of each version (the changelog kept, the failure to retry) and the backfill of the tags that have none

@@ -13,7 +13,7 @@ import DeleteLineDialog from 'components/line/DeleteLineDialog.vue'
 import MigrationStatusPanel from 'components/line/MigrationStatusPanel.vue'
 import LineTabs from 'components/line/LineTabs.vue'
 import LineKindTag from 'components/line/LineKindTag.vue'
-import MembersDialog from 'components/line/MembersDialog.vue'
+import AccessDialog from 'components/line/AccessDialog.vue'
 import Dialog from 'primevue/dialog'
 import { state } from 'stores/userState'
 import { useT } from 'src/composables/useT'
@@ -63,14 +63,22 @@ const reload = () => (props.line !== null ? Promise.resolve() : loadOwn(props.id
 // the members as the owner last saw them (the line itself is not loaded again for it)
 const membersNow = ref(null)
 const managing = ref(false)
-// the owner of a line of this server's own host manages who works on it here (the other hosts do it themselves)
-const canManage = computed(() => data.value?.gitHost === 'local' && (Boolean(state.user?.admin) || (data.value?.members ?? []).some((m) => m.username === state.user?.username && Number(String(m.role).replace('labels.role', '')) === 50)))
+// who has access, as the dialog last saw it: the header shows those with a level of their own
+const onAccess = (access) => { membersNow.value = access.entries.map((entry) => ({ username: entry.username, role: entry.accessLevel })) }
 
 // who works on the line: initials in the header, the username and the role on hover
 const members = computed(() => (membersNow.value ?? data.value?.members ?? []).map((m) => ({
   username: m.username,
   role: typeof m.role === 'string' && m.role.startsWith('labels.') ? m.role : `labels.role${m.role}`,
 })))
+
+// what the person may do here, as the host gives it (an administrator of LINEA is an owner everywhere)
+const myRole = computed(() => {
+  if (state.user?.admin) return 50
+  const mine = (membersNow.value ?? data.value?.members ?? []).find((m) => m.username === state.user?.username)
+  const level = Number(String(mine?.role ?? '').replace('labels.role', ''))
+  return Number.isFinite(level) && level > 0 ? level : 0
+})
 
 const ageText = computed(() => {
   const created = data.value?.createdAt
@@ -88,11 +96,10 @@ const menu = ref(null)
 const showMigration = ref(false)
 const confirmDelete = ref(false)
 
-const showMembers = ref(false)
 const cannotDelete = useDeletable({ ids: () => [props.id], ask: (ids) => lineService.getDeletableLines({ ids }) })
 const items = computed(() => [
   // who works on the line: a dialog from here, not a strip at the foot of its pages
-  { label: `${t('labels.members')}${members.value.length ? ` (${members.value.length})` : ''}`, icon: 'pi pi-users', command: () => { if (canManage.value) managing.value = true; else showMembers.value = true } },
+  { label: `${t('labels.members')}${members.value.length ? ` (${members.value.length})` : ''}`, icon: 'pi pi-users', command: () => { managing.value = true } },
   { label: t('labels.migration_status'), icon: 'pi pi-arrow-right-arrow-left', command: () => { showMigration.value = true } },
   { separator: true },
   { label: cannotDelete(props.id) ? t('labels.delete_owner_only') : t('labels.delete'), icon: 'pi pi-trash', class: 'overflow-menu-item--negative', disabled: cannotDelete(props.id), command: () => { confirmDelete.value = true } },
@@ -137,6 +144,7 @@ defineExpose({ openMigration: () => { showMigration.value = true }, items, confi
       <div class="detalle-cabecera__actions">
         <GitLabButton v-if="data" :id="data.repoId" :host="data.gitHost" :text="true" type="repository" :href="data.webUrl" />
         <Skeleton v-else width="80px" height="32px" />
+        <Button v-if="data" outlined severity="secondary" icon="pi pi-users" name="open-members" data-test="open-members" :label="myRole ? `${$t('access.open')} · ${$t(`labels.role${myRole}`)}` : $t('access.open')" @click="managing = true" />
         <Button name="product-create" :label="$t('labels.create_product')" @click="router.push(`/lines/${id}/new-product`)">
           <template #icon><i class="pi pi-plus" style="font-size: 16px" aria-hidden="true" /></template>
         </Button>
@@ -158,13 +166,7 @@ defineExpose({ openMigration: () => { showMigration.value = true }, items, confi
       <slot />
     </main>
 
-    <Dialog v-model:visible="showMembers" modal :header="$t('labels.members')" :style="{ width: '24rem' }" data-test="members-dialog">
-      <ul class="line-members-list">
-        <li v-for="m in members" :key="m.username"><span class="line-members-list__avatar">{{ m.username ? m.username[0].toUpperCase() : '?' }}</span><strong>{{ m.username }}</strong><span class="text-muted">{{ $t(m.role) }}</span></li>
-        <li v-if="!members.length" class="text-muted">—</li>
-      </ul>
-    </Dialog>
-    <MembersDialog v-if="managing" :line-id="id" @close="managing = false" @changed="(list) => (membersNow = list)" />
+    <AccessDialog v-if="managing" :id="id" @close="managing = false" @changed="onAccess" />
     <DeleteLineDialog v-model="confirmDelete" :line="data ? { ...data, _id: data._id ?? id } : null" @deleted="lineDeleted" />
     <MigrationStatusPanel v-model:dialog="showMigration" :lineId="id" />
   </div>
@@ -236,16 +238,6 @@ defineExpose({ openMigration: () => { showMigration.value = true }, items, confi
   border-bottom: 1px solid var(--p-content-border-color);
 }
 
-.line-members-list {
-  list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px;
-  li { display: flex; align-items: center; gap: 10px; }
-  &__avatar {
-    width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
-    background: var(--p-button-primary-background); color: var(--p-primary-contrast-color); font-size: 10px; font-weight: 700;
-  }
-  .text-muted { margin-left: auto; font-size: 0.8rem; }
-}
-
 .line-shell__content {
   flex: 1;
   min-height: 0;
@@ -255,6 +247,17 @@ defineExpose({ openMigration: () => { showMigration.value = true }, items, confi
   &--fill { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
 
   :deep(.ln-panel) { padding: 0; }
+}
+.detalle-cabecera__role {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--p-content-hover-background);
+  border: 1px solid var(--p-content-border-color);
 }
 </style>
 
