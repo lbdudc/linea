@@ -499,6 +499,17 @@
             severity="secondary"
             :style="{ background: 'var(--status-neutral-solid)', color: 'var(--status-on-solid)' }"
           />
+          <span class="section-header__actions">
+            <PrimeButton
+              v-if="filteredSiblings.length" text size="small" icon="pi pi-copy" name="siblings-apply"
+              :label="$t('apply_config.open')" :disabled="!healthData?.features?.length" @click="applyOpen = true"
+            />
+            <PrimeButton
+              text size="small" icon="pi pi-plus" name="siblings-create-from"
+              :label="$t('apply_config.create_from')"
+              @click="$router.push({ path: `/lines/${productData.lineId}/new-product`, query: { duplicating: true } })"
+            />
+          </span>
         </div>
 
         <div v-if="lineLoading" class="panel-empty">
@@ -589,6 +600,10 @@
                 &nbsp;vs&nbsp;
                 <strong>{{ selectedSiblingForComparison?.name }}</strong>
               </span>
+              <label class="comparison-panel__only">
+                <input v-model="onlyDifferences" type="checkbox" name="comparison-only-differences">
+                {{ $t('apply_config.only_differences') }}
+              </label>
               <PrimeButton
                 text rounded size="small"
                 :aria-label="$t('labels.close_comparison')"
@@ -623,7 +638,7 @@
                 </div>
               </div>
 
-              <div class="comparison-col comparison-col--shared">
+              <div v-if="!onlyDifferences" class="comparison-col comparison-col--shared">
                 <div class="comparison-col__header">
                   <span class="comparison-col__dot comparison-col__dot--shared"></span>
                   Shared
@@ -666,6 +681,14 @@
           </div>
         </transition>
 
+        <ApplyConfigurationDialog
+          v-if="applyOpen"
+          :from="productData.spec?.basicData?.name"
+          :features="healthData?.features ?? []"
+          :siblings="applyTargets"
+          @close="applyOpen = false"
+          @applied="onApplied"
+        />
       </div>
     </template>
     </TabPanel>
@@ -936,6 +959,7 @@ import Tooltip from 'primevue/tooltip';
 import { pipelineWord, pipelineColorVar } from 'src/utils/pipelineStatus';
 import ProductHistoryTimeline from 'src/components/generation/ProductHistoryTimeline.vue';
 import ProductCicd from 'src/components/product/ProductCicd.vue';
+import ApplyConfigurationDialog from 'src/components/product/ApplyConfigurationDialog.vue';
 import GenerationCard from 'src/components/product/GenerationCard.vue';
 import SyncCard from 'src/components/product/SyncCard.vue';
 import { downloadBlob, downloadJson } from 'src/utils/download';
@@ -949,6 +973,7 @@ const ProductModelsEditor = defineAsyncComponent(() => import('src/components/mo
 export default {
   name: 'ProductDetail',
   components: {
+    ApplyConfigurationDialog,
     SyncPreviewDialog,
     GitLabButton,
     GenerateButton,
@@ -1101,6 +1126,8 @@ export default {
       // id -> { valid, error, pending } of the other products of the line, read in one request each when the tab is opened
       siblingStatus: {},
       siblingsLoaded: false,
+      applyOpen: false,
+      onlyDifferences: false,
     };
   },
   computed: {
@@ -1244,6 +1271,9 @@ export default {
     sortedSiblings() {
       const rank = (s) => this.siblingDiff(s)?.similarity ?? -1;
       return [...this.filteredSiblings].sort((a, b) => rank(b) - rank(a) || String(a.name).localeCompare(String(b.name)));
+    },
+    applyTargets() {
+      return this.filteredSiblings.map((sibling) => ({ ...sibling, features: this.siblingHealthData[String(sibling._id)]?.features }));
     },
     selectedSiblingForComparison() {
       if (!this.comparisonSiblingId) return null;
@@ -1699,6 +1729,14 @@ export default {
         found[id] = { ...health, features: health?.features ?? [] };
       }
       this.siblingHealthData = found;
+    },
+
+    async onApplied(ids) {
+      if (!ids.length) return;
+      this.siblingsLoaded = false;
+      this.siblingHealthData = {};
+      this.siblingStatus = {};
+      await this.loadSiblingsOverview();
     },
 
     async selectSiblingForComparison(sibling) {
@@ -2489,6 +2527,8 @@ export default {
   flex-direction: column;
 }
 
+.section-header__actions { margin-left: auto; display: inline-flex; gap: 4px; }
+.comparison-panel__only { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-muted); cursor: pointer; }
 .section-header {
   display: flex;
   align-items: center;

@@ -17,6 +17,11 @@ export default {
     return (await api.put(`/products/${id}/models/${metamodel}`, layouts === undefined ? { content } : { content, layouts })).data;
   },
 
+  /** Sets the feature selection of a product to `features` (names); the selection comes to what they imply. */
+  async saveProductSelection({ id, features }) {
+    return (await api.put(`/products/${id}/selection`, { features })).data;
+  },
+
   async saveProductLayouts({ id, layouts }) {
     return (await api.put(`/products/${id}/layouts`, { layouts })).data;
   },
