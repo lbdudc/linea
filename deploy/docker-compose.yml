@@ -82,8 +82,6 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-}
       GIT_WEBHOOK_SECRET: ${GIT_WEBHOOK_SECRET:-}
     volumes:
-      # Expose the host Docker socket so the playground runner can spawn containers
-      - /var/run/docker.sock:/var/run/docker.sock
       # linea.config.yml (the deployment's plugins and settings, see linea.config.example.yml)
       - ${LINEA_CONFIG_DIR:-./config}:/config:ro
       # the repositories of the local git host

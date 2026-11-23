@@ -44,22 +44,11 @@ COPY apps/server/ apps/server/
 FROM node:22
 WORKDIR /srv
 
-# Docker CLI: lets the playground runner spawn containers through the host socket. docker-ce-cli comes from Docker's own Debian
-# repository (smaller and newer than `docker.io`, and not tied to the base image's suite).
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
-    && install -m 0755 -d /etc/apt/keyrings \
-    && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
-    && chmod a+r /etc/apt/keyrings/docker.asc \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" > /etc/apt/sources.list.d/docker.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends docker-ce-cli \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY --from=build /srv /srv
 
 # The plugins: the server reads them from PLUGINS_DIR, and their dependencies are the server's (node finds /srv/node_modules above
-# them). What runs as a service of its own, their tests and their client code are not the server's.
+# them). What runs as a service of its own (service/), their tests and their client code are not the server's: those folders are
+# the plugin layout of docs/linea/plugins.md §2.
 COPY --from=plugins / /srv/plugins/
 RUN rm -rf /srv/plugins/.git /srv/plugins/*/service /srv/plugins/*/test /srv/plugins/*/client /srv/plugins/*/stdio
 ENV PLUGINS_DIR=/srv/plugins

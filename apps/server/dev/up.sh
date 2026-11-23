@@ -18,7 +18,7 @@ CLIENT_PORT="${CLIENT_PORT:-9000}"
 PORT="$MONGO_PORT" DB_PATH="$DATA/mongo" node dev/mongo.js > "$DATA/mongo.log" 2>&1 &
 until grep -q ready "$DATA/mongo.log" 2>/dev/null; do sleep 1; done
 # `dev` is an administrator (it can switch plugins in the Plugins view and sees the settings); the plugins in LINEA_PLUGINS are on from the first start
-PLUGINS="${LINEA_PLUGINS-analytics-plugin}"
+PLUGINS="${LINEA_PLUGINS-}"
 # LINEA_DEV_ENV=<file>: variables for this server that a plugin needs (the keys of its service...), e.g. ../../linea-plugins/agents-plugin/dev.env
 if [ -n "$LINEA_DEV_ENV" ]; then set -a; . "$LINEA_DEV_ENV"; set +a; fi
 # apps/server/.env may configure a real GitLab: a dev stack uses none unless it is asked for (an empty value wins over the file)

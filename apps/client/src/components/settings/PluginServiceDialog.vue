@@ -200,7 +200,7 @@ const severityOf = (c) =>
   &__time { flex: none; color: var(--p-text-dim-color); }
   &__tag {
     flex: none;
-    width: 7rem;
+    width: 9rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
