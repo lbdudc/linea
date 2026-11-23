@@ -41,8 +41,7 @@ Tags are the release versions (`0.2.0`, `0.2`, `latest`; [all releases](https://
 | `LINEA_CONFIG_DIR` | `./config` | folder with a `linea.config.yml` (git hosts, plugins): see `linea.config.example.yml` |
 | `LINEA_REGISTRY` | `local:registry/index` | where the metamodels are published at start |
 
-GitLab or GitHub instead of the built-in host: `deploy/config-gitlab/` and the guides in the documentation. A LINEA on a laptop starts the services of the plugins itself when a plugin is switched on. In Docker they are in the plugins' repository: add the plugin's file, e.g.
-`docker compose -f docker-compose.yml -f ../../linea-plugins/analytics-plugin/linea.compose.yml up -d`. To run a change you made: `docker compose up -d --build`
+GitLab or GitHub instead of the built-in host: `deploy/config-gitlab/` and the guides in the documentation. A LINEA on a laptop starts the services of the plugins itself when a plugin is switched on. In Docker the server has no Docker socket: the **plugin runner** (profile `plugins`) holds it and does it for the Plugins view: `COMPOSE_PROFILES=plugins LINEA_PLUGINS_HOST_DIR=<absolute path of linea-plugins> PLUGIN_RUNNER_KEY=<random> LINEA_PLUGIN_RUNNER_URL=http://plugin-runner:7070 docker compose up -d`. To run a change you made: `docker compose up -d --build`
 (the build expects `linea-plugins` and `linea-metamodels` checked out next to this repository).
 
 ## Use the pieces from npm

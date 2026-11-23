@@ -22,9 +22,39 @@ const change = (name, action) => [requireAdmin, audited(`plugin.${name}`, { targ
 pluginRouter.post('/:id/install', ...change('install', (id) => pluginHost.install(id)));
 pluginRouter.post('/:id/enable', ...change('enable', (id) => pluginHost.setEnabled(id, true)));
 pluginRouter.post('/:id/disable', ...change('disable', (id) => pluginHost.setEnabled(id, false)));
-pluginRouter.get('/:id/service/logs', requireAdmin, asyncHandler(async (req, res) => res.json(await pluginHost.serviceLogs(req.params.id, { tail: req.query.tail, service: req.query.service }))));
-pluginRouter.post('/:id/service/start', ...change('service.start', (id) => pluginHost.startService(id)));
-pluginRouter.post('/:id/service/stop', ...change('service.stop', (id) => pluginHost.stopService(id)));
+pluginRouter.get('/:id/service/logs', requireAdmin, asyncHandler(async (req, res) => res.json(await pluginHost.serviceLogs(req.params.id, { tail: req.query.tail, service: req.query.service, logs: req.query.logs !== '0' }))));
+// a build takes minutes: these answer at once, and `serviceState.operation` of the plugin says how it goes
+for (const kind of ['start', 'stop', 'restart', 'rebuild', 'down']) {
+  pluginRouter.post(`/:id/service/${kind}`, ...change(`service.${kind}`, (id) => pluginHost.serviceAction(id, kind)));
+}
+for (const kind of ['start', 'stop', 'restart']) {
+  pluginRouter.post(`/:id/service/containers/:service/${kind}`, requireAdmin, audited(`plugin.service.${kind}`, { target: (req) => `${req.params.id}/${req.params.service}` }), asyncHandler(async (req, res) => {
+    await pluginHost.serviceAction(req.params.id, kind, req.params.service);
+    res.json((await pluginHost.list()).find((plugin) => plugin.id === req.params.id));
+  }));
+}
+// the logs as they come (server-sent events: `data: <JSON text>`)
+pluginRouter.get('/:id/service/logs/stream', requireAdmin, asyncHandler(async (req, res) => {
+  res.set({ 'content-type': 'text/event-stream', 'cache-control': 'no-store, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+  res.flushHeaders();
+  let stop = () => {};
+  let closed = false;
+  req.on('close', () => { closed = true; stop(); });
+  const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), 15_000); // the proxy keeps a quiet connection open
+  try {
+    stop = await pluginHost.followServiceLogs(req.params.id, {
+      tail: req.query.tail,
+      service: req.query.service || null,
+      onData: (text) => res.write(`data: ${JSON.stringify(text)}\n\n`),
+      onEnd: (error) => { clearInterval(heartbeat); if (error) res.write(`event: failure\ndata: ${JSON.stringify(error.message)}\n\n`); res.end(); },
+    });
+    if (closed) stop();
+  } catch (error) {
+    clearInterval(heartbeat);
+    res.write(`event: failure\ndata: ${JSON.stringify(error.message)}\n\n`);
+    res.end();
+  }
+}));
 pluginRouter.delete('/:id', ...change('uninstall', (id) => pluginHost.uninstall(id)));
 
 // what an admin chose, as a linea.config.yml to keep (so the deployment survives a wiped database)

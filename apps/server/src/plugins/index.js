@@ -12,6 +12,8 @@ import handleValidationErrors from '../rest/validators/commonValidationHandler.j
 import * as errors from '../model/errors/errors.js';
 import UserRepository from '../model/repositories/UserRepository.js';
 import { PluginHost } from './PluginHost.js';
+import { ServiceRunner } from './ServiceRunner.js';
+import { RemoteServiceRunner } from './RemoteServiceRunner.js';
 import { loadDeployConfig } from '../config/deployConfig.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -42,6 +44,14 @@ for (const warning of deployConfig.warnings) console.warn(`[config] ${warning}`)
 /** What to provision at start: the plugins in `LINEA_PLUGINS` that nobody has decided about yet. */
 export const provisionList = (env = process.env) => (env.LINEA_PLUGINS ?? '').split(',').map((id) => id.trim()).filter(Boolean);
 
+/**
+ * Where the plugins' Docker services are run: by the plugin runner (`LINEA_PLUGIN_RUNNER_URL` and `LINEA_PLUGIN_RUNNER_KEY`) in a
+ * deployment, whose server holds no Docker socket; else by this server's own `docker` (development).
+ */
+export const serviceRunner = (env = process.env) => (env.LINEA_PLUGIN_RUNNER_URL && env.LINEA_PLUGIN_RUNNER_KEY
+  ? new RemoteServiceRunner({ url: env.LINEA_PLUGIN_RUNNER_URL, key: env.LINEA_PLUGIN_RUNNER_KEY })
+  : new ServiceRunner());
+
 /** The host of this server. */
 export const pluginHost = new PluginHost({
   pluginsDir: pluginsDir(),
@@ -51,6 +61,7 @@ export const pluginHost = new PluginHost({
   services,
   declared: deployConfig.declared,
   enabledHosts,
+  runner: serviceRunner(),
 });
 // the keys the plugins have for their services count with those of LINEA_SERVICE_KEYS: one place to rotate them
 addServiceKeys(() => pluginHost.serviceKeys());

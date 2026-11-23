@@ -1,0 +1,4 @@
+# the build needs only these two things: not the repository (node_modules and all)
+*
+!deploy/plugin-runner
+!apps/server/src/plugins/ServiceRunner.js

@@ -304,23 +304,29 @@ export class PluginHost {
   };
 
   /**
-   * What `docker compose` is run with for a plugin's service: this server's environment, the plugin's settings under the names their
-   * manifest gives them (`env`), and `service.env` (`${NAME}` / `${NAME:-default}` filled from the two). `LINEA_INTERNAL_URL` is where
-   * the service reaches this server from a container.
+   * What `docker compose` is run with for a plugin's service: what Docker itself needs to run (`PATH`, `HOME`, `DOCKER_*`), the plugin's
+   * settings under the names their manifest gives them (`env`), and `service.env` (`${NAME}` / `${NAME:-default}` filled from those and
+   * from this server's environment: a manifest names the server's variables it wants the service to have). Nothing else of this server's
+   * environment (its signing key, its database) reaches a plugin's containers. `LINEA_INTERNAL_URL` is where the service reaches this
+   * server from a container.
    */
   #serviceEnv(plugin) {
     const base = { ...this.#env, LINEA_INTERNAL_URL: this.#env.LINEA_INTERNAL_URL || `http://host.docker.internal:${this.#env.port || 3000}` };
     const values = this.#resolved(plugin).values;
     for (const [key, spec] of Object.entries(plugin.settings ?? {})) if (spec.env && values[key] !== undefined && values[key] !== null && values[key] !== '') base[spec.env] = String(values[key]);
-    for (const [name, text] of Object.entries(plugin.service?.env ?? {})) base[name] = expand(text, base);
-    return base;
+    const env = { LINEA_INTERNAL_URL: base.LINEA_INTERNAL_URL };
+    for (const [name, value] of Object.entries(this.#env)) if (/^(PATH|HOME|DOCKER_.*|COMPOSE_.*)$/.test(name) && value !== undefined) env[name] = value;
+    for (const [key, spec] of Object.entries(plugin.settings ?? {})) if (spec.env && base[spec.env] !== undefined && values[key] !== undefined && values[key] !== null && values[key] !== '') env[spec.env] = base[spec.env];
+    for (const [name, text] of Object.entries(plugin.service?.env ?? {})) env[name] = expand(text, base);
+    return env;
   }
 
   /** `{ state: 'running' | 'stopped' | 'unavailable', containers, error }`, `null` for a plugin that runs no service of its own in Docker. */
   async #serviceState(plugin) {
     if (!plugin.service) return null;
     const status = await this.#runner.status(plugin, this.#serviceEnv(plugin));
-    return { state: status.state, containers: status.containers, total: status.total, details: status.details, error: status.error ?? this.#serviceErrors.get(plugin.id) ?? null };
+    const operation = status.operation ? { kind: status.operation.kind, service: status.operation.service, startedAt: status.operation.startedAt, finishedAt: status.operation.finishedAt, error: status.operation.error ? withoutPaths(status.operation.error) : null } : null;
+    return { state: status.state, containers: status.containers, total: status.total, details: status.details, error: status.error ?? this.#serviceErrors.get(plugin.id) ?? null, operation };
   }
 
   /** Starts the service of a plugin (its compose file, `up -d --build`). A failure is kept, and shown with the plugin. */
@@ -338,19 +344,24 @@ export class PluginHost {
     }
   }
 
-  /** What the service of a plugin has said lately, and its containers: the dialog of the Plugins view. `tail` is a number of lines (10 to 2000). */
-  async serviceLogs(id, { tail = 200, service = null } = {}) {
+  /**
+   * What the service of a plugin has said lately, and its containers and the last thing asked of it: the dialog of the Plugins view.
+   * `tail` is a number of lines (10 to 2000); `logs: false` is the state alone (what the dialog asks for while it follows the logs itself).
+   */
+  async serviceLogs(id, { tail = 200, service = null, logs = true } = {}) {
     await this.#refresh();
     const plugin = this.#find(id);
     if (!plugin.service) throw new PluginStateError(id, `The plugin "${id}" has no service.`);
     const lines = Math.min(2000, Math.max(10, Number.parseInt(tail, 10) || 200));
     const env = this.#serviceEnv(plugin);
     const status = await this.#runner.status(plugin, env);
-    if (status.state === 'unavailable') return { state: status.state, containers: [], logs: '', error: status.error, tail: lines };
+    const operation = status.operation ? { ...status.operation, error: status.operation.error ? withoutPaths(status.operation.error) : null, output: withoutSecrets(status.operation.output, env, plugin) } : null;
+    if (status.state === 'unavailable') return { state: status.state, containers: [], logs: '', error: status.error, tail: lines, operation };
+    if (!logs) return { state: status.state, containers: status.details, logs: '', error: null, tail: lines, operation };
     try {
-      return { state: status.state, containers: status.details, logs: withoutSecrets(await this.#runner.logs(plugin, env, { tail: lines, service: status.details.some((container) => container.service === service) ? service : null }), env, plugin), error: null, tail: lines };
+      return { state: status.state, containers: status.details, logs: withoutSecrets(await this.#runner.logs(plugin, env, { tail: lines, service: status.details.some((container) => container.service === service) ? service : null }), env, plugin), error: null, tail: lines, operation };
     } catch (error) {
-      return { state: status.state, containers: status.details, logs: '', error: withoutPaths(error.message), tail: lines };
+      return { state: status.state, containers: status.details, logs: '', error: withoutPaths(error.message), tail: lines, operation };
     }
   }
 
@@ -365,6 +376,45 @@ export class PluginHost {
       this.#serviceErrors.set(id, withoutPaths(error.message));
       throw new PluginStateError(id, `The service of "${id}" did not stop: ${this.#serviceErrors.get(id)}`);
     }
+  }
+
+  /**
+   * Restart, rebuild, down (and start, stop) of the whole service, or of one container of it (`service`; start, stop, restart). It is
+   * asked and answered at once: a build takes minutes, and how it goes is in `serviceState.operation`.
+   */
+  async serviceAction(id, kind, service = null) {
+    await this.#refresh();
+    const plugin = this.#find(id);
+    if (!plugin.service) throw new PluginStateError(id, `The plugin "${id}" has no service.`);
+    if (!this.#records.get(id)?.installed) throw new PluginStateError(id, `The plugin "${id}" is not installed.`);
+    await this.#runner.begin(plugin, this.#serviceEnv(plugin), kind, service);
+  }
+
+  /**
+   * Follows the logs of the service as they come (secrets and colour codes taken out): `onData(text)`, `onEnd(error|null)`, and the
+   * returned function stops it. The dialog of the Plugins view reads it as server-sent events.
+   */
+  async followServiceLogs(id, { tail = 200, service = null, onData, onEnd }) {
+    await this.#refresh();
+    const plugin = this.#find(id);
+    if (!plugin.service) throw new PluginStateError(id, `The plugin "${id}" has no service.`);
+    const env = this.#serviceEnv(plugin);
+    const lines = Math.min(2000, Math.max(10, Number.parseInt(tail, 10) || 200));
+    // a line can come cut in two chunks: a secret is hidden once the line is whole
+    let pending = '';
+    const emit = (text) => { if (text) onData(withoutSecrets(text, env, plugin)); };
+    return this.#runner.followLogs(plugin, env, {
+      tail: lines,
+      service,
+      onData: (chunk) => {
+        pending += chunk;
+        const end = pending.lastIndexOf('\n');
+        if (end < 0) return;
+        emit(pending.slice(0, end + 1));
+        pending = pending.slice(end + 1);
+      },
+      onEnd: (error) => { emit(pending); pending = ''; onEnd(error ? new Error(withoutPaths(error.message)) : null); },
+    });
   }
 
   /** The plugin's `remote` with its `url` setting (when it has one) as the address: the UI can change where its service is. */

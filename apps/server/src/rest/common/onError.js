@@ -104,6 +104,9 @@ const codeErrorHandlers = {
     PLUGIN_STATE: (res, err) => {
       res.status(409).json({ error: 'error_messages.plugin_state', detail: err.message });
     },
+    PLUGIN_SERVICE_INPUT: (res, err) => {
+      res.status(400).json({ error: 'error_messages.plugin_state', detail: err.message });
+    },
     ANALYSIS_RUNTIME_ERROR: (res) => {
       res.status(500).json({ error: 'error_messages.analysis_runtime_error' });
     },

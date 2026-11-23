@@ -117,3 +117,15 @@ test('the manifest keeps the compose file inside the plugin', () => {
   expect(validateManifest({ name: 'a', version: '1.0.0', service: { compose: '../x.yml' } }).errors).toHaveLength(1);
   expect(validateManifest({ name: 'a', version: '1.0.0', service: { compose: 'service/compose.yml' } }).errors).toEqual([]);
 });
+
+test('compose gets the plugin’s own variables, not the server’s secrets', async () => {
+  const { calls, runner } = fakeDocker();
+  const host = hostOf(runner, { JWT_SIGN_KEY: 'signing', mongoUrl: 'mongodb://x', PATH: '/usr/bin', DOCKER_HOST: 'unix:///d.sock' });
+  await host.start();
+  await host.install('a-plugin');
+  await host.setEnabled('a-plugin', true);
+  const { env } = calls.find((call) => call.args.includes('up'));
+  expect(env).toMatchObject({ KEY: 'k1', LINEA_API_URL: 'http://host.docker.internal:3100', A_KEY: 'k1', PATH: '/usr/bin', DOCKER_HOST: 'unix:///d.sock' });
+  expect(env).not.toHaveProperty('JWT_SIGN_KEY');
+  expect(env).not.toHaveProperty('mongoUrl');
+});

@@ -58,7 +58,8 @@ const HEALTH_POLL_MS = 30_000
 const BUSY_POLL_MS = 3_000
 let timer = null
 let stopped = false
-const changing = () => Object.keys(working.value).length > 0 || plugins.value.some((p) => ['starting', 'degraded'].includes(p.serviceState?.state))
+const operating = (plugin) => Boolean(plugin.serviceState?.operation && !plugin.serviceState.operation.finishedAt) // a build, a restart... is under way
+const changing = () => Object.keys(working.value).length > 0 || plugins.value.some((p) => operating(p) || ['starting', 'degraded'].includes(p.serviceState?.state))
 const tick = async () => {
   await load()
   if (!stopped) timer = setTimeout(tick, changing() ? BUSY_POLL_MS : HEALTH_POLL_MS)
@@ -86,6 +87,7 @@ const SERVICE_LOOK = {
 const serviceTag = (plugin) => {
   // while a start or stop of it is in flight the containers are changing: say so instead of the state of a moment ago
   if (working.value[plugin.id]) return { label: t(`plugins.service_${working.value[plugin.id]}`), severity: 'warn', pending: true }
+  if (operating(plugin)) return { label: t(`plugins.service_op_${plugin.serviceState.operation.kind}`), severity: 'warn', pending: true }
   // LINEA cannot see Docker here (its own container, say) but the service answers: someone else runs it, and that is not a problem
   if (external(plugin)) return { label: t('plugins.service_external'), severity: 'secondary' }
   const [key, severity] = SERVICE_LOOK[plugin.serviceState?.state] ?? SERVICE_LOOK.stopped
@@ -131,7 +133,9 @@ const act = async (plugin, action) => {
     busy.value = null
     const { [plugin.id]: _done, ...rest } = working.value
     working.value = rest
-    load()
+    // a start or a rebuild goes on after this answer: the page looks again now, and again every few seconds while it does
+    clearTimeout(timer)
+    if (!stopped) tick()
   }
 }
 </script>

@@ -34,8 +34,8 @@ services:
   server:
     # the published image; `docker compose up --build` builds it from this checkout instead (with the plugins and the metamodels of
     # the repositories next to it: lbdudc/linea-plugins, lbdudc/linea-metamodels).
-    # The services some plugins run on (analysis, agents...) are not here: each plugin brings the compose file that adds its own to this
-    # one (`-f docker-compose.yml -f ../../linea-plugins/<plugin>/linea.compose.yml`, see linea-plugins/README.md).
+    # The services some plugins run on (analysis, agents...) are not here: each plugin declares its own compose file (`service` in its
+    # plugin.json), and the Plugins view starts, stops and shows the logs of them through the plugin runner below.
     image: ghcr.io/lbdudc/linea-server:${LINEA_VERSION:-latest}
     build:
       context: ..
@@ -84,6 +84,13 @@ services:
       # GitLab/GitHub push webhooks (the local git host needs neither)
       PUBLIC_URL: ${PUBLIC_URL:-}
       GIT_WEBHOOK_SECRET: ${GIT_WEBHOOK_SECRET:-}
+      # the plugin runner (below; profile `plugins`) is what starts the plugins' services: this server holds no Docker socket.
+      # Without it the Plugins view says "Docker unavailable" and the services are started by hand.
+      LINEA_PLUGIN_RUNNER_URL: ${LINEA_PLUGIN_RUNNER_URL:-}
+      LINEA_PLUGIN_RUNNER_KEY: ${PLUGIN_RUNNER_KEY:-}
+    # the services of the plugins publish their ports on this host: this is how the server reaches them (and they it)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       # linea.config.yml (the deployment's plugins and settings, see linea.config.example.yml)
       - ${LINEA_CONFIG_DIR:-./config}:/config:ro
@@ -118,6 +125,35 @@ services:
       - "traefik.http.routers.linea-socket.rule=PathPrefix(`/socket.io/`)"
       - "traefik.http.routers.linea-socket.service=linea-server"
       - "traefik.http.middlewares.linea-no-store.headers.customresponseheaders.Cache-Control=no-store"
+
+  # The only container that holds the Docker socket for the plugins (so that the server, which faces the internet, does not). It starts,
+  # stops, restarts, rebuilds and shows the logs of the service a plugin declares, when LINEA's server asks with PLUGIN_RUNNER_KEY, and
+  # nothing else: it takes a plugin's id, never a path or a command. Not published: only this network reaches it.
+  # Off unless the profile `plugins` is on (COMPOSE_PROFILES=plugins), with LINEA_PLUGINS_HOST_DIR (where the linea-plugins checkout
+  # is on this host: the same path inside, because the Docker daemon resolves the plugins' build folders and volumes on the host) and
+  # LINEA_PLUGIN_RUNNER_URL=http://plugin-runner:7070 for the server.
+  plugin-runner:
+    profiles: ["plugins"]
+    image: ghcr.io/lbdudc/linea-plugin-runner:${LINEA_VERSION:-latest}
+    build:
+      context: ..
+      dockerfile: deploy/plugin-runner/Dockerfile
+    environment:
+      PLUGINS_DIR: ${LINEA_PLUGINS_HOST_DIR:-/srv/linea-plugins-unset}
+      PLUGIN_RUNNER_KEY: ${PLUGIN_RUNNER_KEY:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${LINEA_PLUGINS_HOST_DIR:-/srv/linea-plugins-unset}:${LINEA_PLUGINS_HOST_DIR:-/srv/linea-plugins-unset}:ro
+    networks:
+      - linea-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:7070/health',{headers:{authorization:'Bearer '+process.env.PLUGIN_RUNNER_KEY}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    init: true
+    logging: *logging
+    restart: unless-stopped
 
   client:
     image: ghcr.io/lbdudc/linea-client:${LINEA_VERSION:-latest}

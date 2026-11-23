@@ -1,38 +1,56 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { useConfirm } from 'primevue/useconfirm'
 import pluginService from 'src/services/pluginService'
 import { notify, errorMessage } from 'src/composables/useNotify'
 import { useT } from 'src/composables/useT'
 import Dialog from 'primevue/dialog'
+import ConfirmDialog from 'primevue/confirmdialog'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import Select from 'primevue/select'
 import ToggleSwitch from 'primevue/toggleswitch'
 import Message from 'primevue/message'
 
-// The service a plugin runs in Docker: its containers and what they have been saying (`docker compose logs`).
+// The service a plugin runs in Docker: its containers, what can be done with them, and what they have been saying (`docker compose logs`).
 const props = defineProps({ plugin: { type: Object, required: true }, title: { type: String, default: '' } })
 const emit = defineEmits(['close', 'changed'])
 const t = useT()
+const confirm = useConfirm()
 
 const visible = ref(true)
-const info = ref(null)
+const info = ref(null) // state, containers and the last operation: asked again every few seconds
+const logText = ref('')
 const loading = ref(true)
 const failed = ref(null)
 const busy = ref(false)
 const tail = ref(200)
 const follow = ref(true)
+const live = ref(false) // the logs arrive by the stream (else they are asked for)
+const reconnecting = ref(false)
 const ALL = '*' // PrimeVue's Select reads an empty value as "nothing chosen"
 const only = ref(ALL)
 const logBox = ref(null)
+const atBottom = ref(true)
 const tails = computed(() => [100, 200, 500, 1000, 2000].map((value) => ({ value, label: t('plugins.log_lines', { n: value }) })))
 const REFRESH_MS = 3000
+const MAX_LOG = 400_000 // characters kept: a service that talks a lot does not fill the page's memory
+const service = () => (only.value === ALL ? null : only.value)
 
-const load = async () => {
+const scrollDown = () => nextTick(() => { if (logBox.value && atBottom.value) logBox.value.scrollTop = logBox.value.scrollHeight })
+const onScroll = () => {
+  const box = logBox.value
+  if (box) atBottom.value = box.scrollHeight - box.scrollTop - box.clientHeight < 40
+}
+const jump = () => { atBottom.value = true; scrollDown() }
+
+// the state (containers, operation): always polled; the logs too when they are not streamed
+const loadState = async ({ withLogs = false } = {}) => {
   try {
-    info.value = await pluginService.serviceLogs(props.plugin.id, tail.value, only.value === ALL ? null : only.value)
+    const data = await pluginService.serviceLogs(props.plugin.id, tail.value, service(), { logs: withLogs })
+    info.value = data
+    if (withLogs) { logText.value = data.logs; scrollDown() }
     failed.value = null
-    if (follow.value) await nextTick(() => { if (logBox.value) logBox.value.scrollTop = logBox.value.scrollHeight })
   } catch (e) {
     failed.value = errorMessage(e, t)
   } finally {
@@ -40,12 +58,65 @@ const load = async () => {
   }
 }
 
+// the stream: what comes is gathered and shown a few times a second, whatever the speed of the service
+let controller = null
+let pending = ''
+let flush = null
+let retry = null
+const showPending = () => {
+  flush = null
+  if (!pending) return
+  logText.value = (logText.value + pending).slice(-MAX_LOG)
+  pending = ''
+  scrollDown()
+}
+const stopStream = () => {
+  controller?.abort()
+  controller = null
+  clearTimeout(retry)
+  live.value = false
+}
+const startStream = async () => {
+  stopStream()
+  const mine = new AbortController()
+  controller = mine
+  logText.value = ''
+  pending = ''
+  let first = true
+  try {
+    await pluginService.followServiceLogs(props.plugin.id, {
+      tail: tail.value,
+      service: service(),
+      signal: mine.signal,
+      onData: (text) => {
+        if (first) { first = false; live.value = true; reconnecting.value = false; loading.value = false }
+        pending += text
+        flush ??= setTimeout(showPending, 150)
+      },
+    })
+    // the end of the stream is a container that was recreated (a restart, a rebuild): asked again
+  } catch (e) {
+    if (mine.signal.aborted) return
+    if (first) { failed.value = errorMessage(e, t); live.value = false; return await loadState({ withLogs: true }) } // no stream here: the logs are asked for
+  }
+  if (mine.signal.aborted) return
+  reconnecting.value = true
+  retry = setTimeout(() => { if (follow.value && !mine.signal.aborted) startStream() }, 2000)
+}
+
+const restartLogs = async () => {
+  if (follow.value) startStream() // it lasts as long as the dialog is open: not awaited
+  else { stopStream(); await loadState({ withLogs: true }) }
+}
+
 let timer = null
-const schedule = () => { clearInterval(timer); timer = follow.value ? setInterval(load, REFRESH_MS) : null }
-onMounted(() => { load(); schedule() })
-onBeforeUnmount(() => clearInterval(timer))
-watch(follow, schedule)
-watch([tail, only], load)
+onMounted(async () => {
+  await loadState()
+  await restartLogs()
+  timer = setInterval(() => loadState({ withLogs: !live.value && follow.value }), REFRESH_MS)
+})
+onBeforeUnmount(() => { clearInterval(timer); stopStream(); clearTimeout(flush) })
+watch([follow, tail, only], restartLogs)
 const onlyOptions = computed(() => [{ value: ALL, label: t('plugins.log_all') }, ...(info.value?.containers ?? []).map((c) => ({ value: c.service, label: c.service }))])
 
 // `docker compose logs` lines are `service | 2026-11-23T10:46:44.1Z message`: pulled apart so that each part reads at a glance
@@ -54,7 +125,7 @@ const ERROR = /\b(error|fatal|panic|exception|ERR!?)\b|"s":"(E|F)"/i
 const WARN = /\b(warn(ing)?|deprecat\w+)\b|"s":"W"/i
 const lines = computed(() => {
   const colors = new Map()
-  return String(info.value?.logs ?? '').split('\n').filter(Boolean).map((raw, i) => {
+  return String(logText.value ?? '').split('\n').filter(Boolean).map((raw, i) => {
     const m = LINE.exec(raw)
     const text = m ? m[3] : raw
     if (m && !colors.has(m[1])) colors.set(m[1], colors.size % 6)
@@ -71,22 +142,39 @@ const lines = computed(() => {
 })
 
 const running = computed(() => ['running', 'starting', 'degraded'].includes(info.value?.state))
-const act = async (action) => {
+const operation = computed(() => info.value?.operation ?? null)
+const working = computed(() => Boolean(operation.value && !operation.value.finishedAt))
+const operationFailed = computed(() => (operation.value?.finishedAt && operation.value.error ? operation.value : null))
+const unavailable = computed(() => info.value?.state === 'unavailable')
+
+// what is asked is answered at once (a build takes minutes): how it goes is in the operation, which the state brings
+const run = async (call) => {
   busy.value = true
   try {
-    await pluginService[action](props.plugin.id)
+    await call()
     emit('changed')
-    await load()
   } catch (e) {
     notify({ type: 'negative', message: errorMessage(e, t) })
-    await load()
   } finally {
     busy.value = false
+    await loadState()
   }
 }
+const act = (action) => run(() => pluginService[action](props.plugin.id))
+const actOn = (container, action) => run(() => pluginService.containerAction(props.plugin.id, container.service, action))
+const ask = (action, message) => confirm.require({
+  group: 'service',
+  message: t(message, { name: props.title || props.plugin.id }),
+  icon: 'pi pi-exclamation-triangle',
+  acceptLabel: t(action === 'rebuildService' ? 'plugins.service_rebuild' : 'plugins.service_down_short'),
+  rejectLabel: t('labels.cancel'),
+  acceptProps: { severity: 'danger', size: 'small' },
+  rejectProps: { severity: 'secondary', text: true, size: 'small' },
+  accept: () => act(action),
+})
 const copy = async () => {
   try {
-    await navigator.clipboard.writeText(info.value?.logs ?? '')
+    await navigator.clipboard.writeText(logText.value ?? '')
     notify({ type: 'positive', message: t('plugins.log_copied') })
   } catch (e) {
     notify({ type: 'negative', message: errorMessage(e, t) })
@@ -99,9 +187,17 @@ const severityOf = (c) =>
 
 <template>
   <Dialog v-model:visible="visible" modal :header="title" :style="{ width: '60rem', maxWidth: '96vw' }" @hide="emit('close')">
+    <ConfirmDialog group="service" />
     <div class="svc">
       <Message v-if="failed" severity="error" :closable="false">{{ failed }}</Message>
-      <Message v-if="info?.state === 'unavailable'" severity="warn" :closable="false">{{ t('plugins.service_hint', { why: info.error }) }}</Message>
+      <Message v-if="unavailable" severity="warn" :closable="false">{{ t('plugins.service_hint', { why: info.error }) }}</Message>
+      <Message v-if="working" severity="info" :closable="false" name="plugin-service-operation">
+        <i class="pi pi-spin pi-spinner" /> {{ t(`plugins.service_op_${operation.kind}`) }}<template v-if="operation.service"> · {{ operation.service }}</template>
+      </Message>
+      <Message v-if="operationFailed" severity="error" :closable="false" name="plugin-service-operation-failed">
+        {{ t('plugins.service_op_failed') }} ({{ operationFailed.kind }}): {{ operationFailed.error }}
+        <pre v-if="operationFailed.output" class="svc__output">{{ operationFailed.output }}</pre>
+      </Message>
 
       <ul v-if="info?.containers?.length" class="svc__containers">
         <li v-for="c in info.containers" :key="c.name">
@@ -109,30 +205,58 @@ const severityOf = (c) =>
           <Tag :value="c.health ? `${c.state} · ${c.health}` : c.state" :severity="severityOf(c)" />
           <span v-if="c.ports?.length" class="svc__ports">{{ c.ports.join(', ') }}</span>
           <span class="svc__status">{{ c.status }}</span>
+          <span class="svc__spacer" />
+          <Button
+            v-if="c.state !== 'running'" icon="pi pi-play" size="small" severity="secondary" text rounded name="plugin-container-start"
+            :aria-label="t('plugins.container_start')" v-tooltip.top="t('plugins.container_start')" :disabled="working || busy" @click="actOn(c, 'start')"
+          />
+          <template v-else>
+            <Button
+              icon="pi pi-refresh" size="small" severity="secondary" text rounded name="plugin-container-restart"
+              :aria-label="t('plugins.container_restart')" v-tooltip.top="t('plugins.container_restart')" :disabled="working || busy" @click="actOn(c, 'restart')"
+            />
+            <Button
+              icon="pi pi-stop" size="small" severity="secondary" text rounded name="plugin-container-stop"
+              :aria-label="t('plugins.container_stop')" v-tooltip.top="t('plugins.container_stop')" :disabled="working || busy" @click="actOn(c, 'stop')"
+            />
+          </template>
         </li>
       </ul>
-      <p v-else-if="info && info.state !== 'unavailable'" class="svc__none">{{ t('plugins.service_no_containers') }}</p>
+      <p v-else-if="info && !unavailable" class="svc__none">{{ t('plugins.service_no_containers') }}</p>
 
       <div class="svc__bar">
-        <Button v-if="!running" :label="t('plugins.service_start')" icon="pi pi-play" size="small" :loading="busy" :disabled="info?.state === 'unavailable'" @click="act('startService')" />
-        <Button v-else :label="t('plugins.service_stop')" icon="pi pi-stop" size="small" severity="secondary" outlined :loading="busy" @click="act('stopService')" />
+        <Button v-if="!running" :label="t('plugins.service_start')" icon="pi pi-play" size="small" :loading="busy || working" :disabled="unavailable" name="plugin-service-start" @click="act('startService')" />
+        <template v-else>
+          <Button :label="t('plugins.service_restart')" icon="pi pi-refresh" size="small" severity="secondary" outlined :disabled="busy || working" name="plugin-service-restart" @click="act('restartService')" />
+          <Button :label="t('plugins.service_stop')" icon="pi pi-stop" size="small" severity="secondary" outlined :disabled="busy || working" name="plugin-service-stop" @click="act('stopService')" />
+        </template>
+        <Button :label="t('plugins.service_rebuild')" icon="pi pi-wrench" size="small" severity="secondary" outlined :disabled="unavailable || busy || working" name="plugin-service-rebuild" @click="ask('rebuildService', 'plugins.confirm_rebuild')" />
+        <Button :label="t('plugins.service_down')" icon="pi pi-trash" size="small" severity="danger" text :disabled="unavailable || busy || working || !info?.containers?.length" name="plugin-service-down" @click="ask('downService', 'plugins.confirm_down')" />
+      </div>
+
+      <div class="svc__bar">
         <Select v-model="only" :options="onlyOptions" option-label="label" option-value="value" size="small" />
         <Select v-model="tail" :options="tails" option-label="label" option-value="value" size="small" />
         <label class="svc__follow"><ToggleSwitch v-model="follow" /> {{ t('plugins.log_follow') }}</label>
+        <Tag v-if="follow && live" :value="t('plugins.log_live')" severity="success" />
+        <Tag v-else-if="follow && reconnecting" :value="t('plugins.log_reconnecting')" severity="warn" />
         <span class="svc__spacer" />
-        <Button icon="pi pi-refresh" size="small" severity="secondary" text :aria-label="t('plugins.refresh')" :loading="loading" @click="load" />
-        <Button icon="pi pi-copy" size="small" severity="secondary" text :aria-label="t('plugins.log_copy')" :disabled="!info?.logs" @click="copy" />
+        <Button icon="pi pi-refresh" size="small" severity="secondary" text :aria-label="t('plugins.refresh')" :loading="loading" @click="restartLogs" />
+        <Button icon="pi pi-copy" size="small" severity="secondary" text :aria-label="t('plugins.log_copy')" :disabled="!logText" @click="copy" />
       </div>
 
-      <div ref="logBox" class="svc__log" tabindex="0" role="log">
-        <div v-for="line in lines" :key="line.i" :class="['svc__line', line.level && `svc__line--${line.level}`]">
-          <span v-if="line.time" class="svc__time" :title="line.date">{{ line.time }}</span>
-          <span v-if="line.service" :class="['svc__tag', `svc__tag--${line.color}`]">{{ line.service }}</span>
-          <span class="svc__text">{{ line.text }}</span>
+      <div class="svc__logwrap">
+        <div ref="logBox" class="svc__log" tabindex="0" role="log" @scroll="onScroll">
+          <div v-for="line in lines" :key="line.i" :class="['svc__line', line.level && `svc__line--${line.level}`]">
+            <span v-if="line.time" class="svc__time" :title="line.date">{{ line.time }}</span>
+            <span v-if="line.service" :class="['svc__tag', `svc__tag--${line.color}`]">{{ line.service }}</span>
+            <span class="svc__text">{{ line.text }}</span>
+          </div>
+          <p v-if="!lines.length && !loading" class="svc__empty">{{ t('plugins.log_empty') }}</p>
         </div>
-        <p v-if="!lines.length && !loading" class="svc__empty">{{ t('plugins.log_empty') }}</p>
+        <Button v-if="follow && !atBottom" class="svc__jump" :label="t('plugins.log_jump')" icon="pi pi-arrow-down" size="small" severity="secondary" @click="jump" />
       </div>
-      <Message v-if="info?.error && info.state !== 'unavailable'" severity="warn" :closable="false">{{ info.error }}</Message>
+      <Message v-if="info?.error && !unavailable" severity="warn" :closable="false">{{ info.error }}</Message>
     </div>
   </Dialog>
 </template>
@@ -172,6 +296,9 @@ const severityOf = (c) =>
 
   &__follow { display: inline-flex; align-items: center; gap: 6px; font-size: 0.875rem; }
   &__spacer { flex: 1; }
+  &__output { margin: 6px 0 0; max-height: 8rem; overflow: auto; white-space: pre-wrap; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  &__logwrap { position: relative; }
+  &__jump { position: absolute; right: 16px; bottom: 12px; box-shadow: 0 2px 8px color-mix(in srgb, var(--p-text-color) 20%, transparent); }
 
   &__log {
     // a terminal-like pane built on the app's tokens, so it follows the theme by itself (light and dark)
