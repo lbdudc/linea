@@ -12,7 +12,8 @@ export default defineConfig({
   // the plugins' own tests run with the server's: they use its test support and its dependencies
   server: { fs: { allow: ['../..', plugins] } },
   test: {
-    include: ['src/**/*.test.js', `${plugins}/*/test/server/**/*.test.js`],
+    // a glob takes forward slashes: a Windows path as it is (backslashes) matches nothing, and the plugins' tests would not run
+    include: ['src/**/*.test.js', `${plugins.replaceAll(path.sep, '/')}/*/test/server/**/*.test.js`],
     watchExclude: ['**/tmp/**'],
     globalSetup: ['./src/test/support/mongo.global.js'],
     setupFiles: ['./src/test/support/env.setup.js', './src/test/support/netProbe.setup.js'],

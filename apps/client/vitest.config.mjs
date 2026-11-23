@@ -39,7 +39,8 @@ export default defineConfig({
     // (a plugin's own test setup, when that plugin is in the plugins folder)
     setupFiles: ['./src/test/setup.js', path.join(pluginsDir, 'agents-plugin/test/client/setup.js')].filter((file) => fs.existsSync(path.resolve(__dirname, file))),
     // the plugins' own tests run with the app's, so they see the same `src/` aliases
-    include: ['src/test/**/*.test.js', `${pluginsDir}/*/test/client/**/*.test.js`],
+    // a glob takes forward slashes: a Windows path as it is (backslashes) matches nothing, and the plugins' tests would not run
+    include: ['src/test/**/*.test.js', `${pluginsDir.replaceAll(path.sep, '/')}/*/test/client/**/*.test.js`],
     exclude: [...configDefaults.exclude, 'scripts/**'],
   },
 });
