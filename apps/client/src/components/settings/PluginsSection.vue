@@ -96,17 +96,39 @@ const serviceTag = (plugin) => {
 const external = (plugin) => plugin.serviceState?.state === 'unavailable' && plugin.health === 'up'
 // no Docker to start or stop it with, so there are no controls (the row says why in its tooltip)
 const manageable = (plugin) => Boolean(plugin.serviceState) && plugin.serviceState.state !== 'unavailable'
-// what the page tells about a plugin that is on and whose service does not answer, when the service row does not already say it
-const unreachable = (plugin) => {
-  if (!plugin.enabled || plugin.health !== 'down' || working.value[plugin.id]) return null
-  const state = plugin.serviceState?.state
-  if (state === 'running') return 'plugins.service_up_unreachable'
-  if (!plugin.serviceState || state === 'unavailable') return 'plugins.service_unreachable'
-  return null
+// Why a plugin whose service does not answer does not: in words, not in error codes (the code stays in the tooltip)
+const whyNoAnswer = (plugin) => {
+  const error = String(plugin.healthDetail?.error ?? '')
+  if (plugin.serviceState?.state === 'unavailable') return 'plugins.why_no_docker'
+  if (/ECONNREFUSED|EHOSTUNREACH|ENOTFOUND|ECONNRESET|EAI_AGAIN|fetch failed/.test(error)) return 'plugins.why_refused'
+  if (/no answer in|timeout/i.test(error)) return 'plugins.why_timeout'
+  if (/^HTTP \d+/.test(error)) return 'plugins.why_http'
+  return 'plugins.why_silent'
 }
+
+/**
+ * The one answer a person wants: is this plugin working? `{ tone: ok | warn | bad, label, pending?, why? }` (`why`: what is wrong and what
+ * to do, in words), `null` for a plugin that is off or has no service to ask. The containers and the connection behind it are in the tooltip.
+ */
+const summary = (plugin) => {
+  const state = plugin.serviceState?.state
+  const probed = ['up', 'down'].includes(plugin.health)
+  if (!plugin.enabled || (!plugin.serviceState && !probed)) return null
+  if (working.value[plugin.id] || operating(plugin)) return { tone: 'warn', label: serviceTag(plugin).label, pending: true }
+  if (state === 'starting') return { tone: 'warn', label: t('plugins.service_starting'), pending: true }
+  if (state === 'stopped') return { tone: 'bad', label: t('plugins.st_not_working'), why: 'plugins.why_stopped' }
+  if (state === 'failed') return { tone: 'bad', label: t('plugins.st_not_working'), why: 'plugins.why_failed' }
+  if (plugin.health === 'down') return { tone: 'bad', label: t('plugins.st_not_working'), why: whyNoAnswer(plugin) }
+  if (state === 'unavailable' && !probed) return { tone: 'warn', label: t('plugins.st_unknown'), why: 'plugins.why_no_docker' }
+  if (state === 'degraded') return { tone: 'warn', label: t('plugins.st_with_problems'), why: 'plugins.why_degraded' }
+  return { tone: 'ok', label: t('plugins.st_working') }
+}
+// what is behind the answer, for who wants it: the containers and the connection, errors as they came
+const summaryDetail = (plugin) => [
+  external(plugin) ? t('plugins.service_external_hint') : plugin.serviceState ? `${t('plugins.service')}: ${serviceTag(plugin).label}${plugin.serviceState.error ? ` (${plugin.serviceState.error})` : ''}` : '',
+  healthHint(plugin),
+].filter(Boolean).join(' · ')
 const serviceUp = (plugin) => ['running', 'starting', 'degraded'].includes(plugin.serviceState?.state)
-// plugins enabled whose service is not up: the page says it (the plugin is on, what it needs is not)
-const serviceDownButOn = (plugin) => plugin.enabled && plugin.serviceState && !serviceUp(plugin) && plugin.serviceState.state !== 'unavailable'
 
 const statusOf = (plugin) =>
   plugin.installed && plugin.loadError
@@ -182,20 +204,13 @@ const act = async (plugin, action) => {
               <Tag v-if="!plugin.compatible && !plugin.error" :value="t('plugins.incompatible', { requires: plugin.requires?.linea })" severity="warn" />
             </dd>
           </div>
-          <div v-if="plugin.serviceState">
-            <dt>{{ t('plugins.service') }}</dt>
-            <dd v-tooltip.top="external(plugin) ? t('plugins.service_external_hint') : plugin.serviceState.error ? t('plugins.service_hint', { why: plugin.serviceState.error }) : ''">
-              <i v-if="serviceTag(plugin).pending" class="pi pi-spin pi-spinner plugin__spin" />
-              <span v-else :class="['plugin__dot', `plugin__dot--${serviceTag(plugin).severity}`]" />
-              {{ serviceTag(plugin).label }}
-              <span v-if="plugin.serviceState.total" class="plugin__muted">· {{ t('plugins.containers_of', { n: plugin.serviceState.containers, total: plugin.serviceState.total }) }}</span>
-            </dd>
-          </div>
-          <div v-if="plugin.health">
-            <dt>{{ t('plugins.connection') }}</dt>
-            <dd v-tooltip.top="healthHint(plugin)">
-              <span :class="['plugin__dot', plugin.health === 'up' ? 'plugin__dot--success' : 'plugin__dot--danger']" />
-              {{ t(`plugins.${plugin.health}`) }}
+          <div v-if="summary(plugin)">
+            <dt>{{ t('plugins.state') }}</dt>
+            <dd v-tooltip.top="summaryDetail(plugin)" name="plugin-summary">
+              <i v-if="summary(plugin).pending" class="pi pi-spin pi-spinner plugin__spin" />
+              <span v-else :class="['plugin__dot', `plugin__dot--${{ ok: 'success', warn: 'warn', bad: 'danger' }[summary(plugin).tone]}`]" />
+              <strong>{{ summary(plugin).label }}</strong>
+              <span v-if="plugin.serviceState?.total" class="plugin__muted">· {{ t('plugins.containers_of', { n: plugin.serviceState.containers, total: plugin.serviceState.total }) }} {{ t('plugins.containers_short') }}</span>
             </dd>
           </div>
         </dl>
@@ -204,8 +219,7 @@ const act = async (plugin, action) => {
           {{ t('plugins.needs_settings', { keys: plugin.settingsMissing.join(', ') }) }}
         </Message>
         <Message v-if="plugin.unavailable" severity="warn" :closable="false">{{ t('plugins.unavailable', { why: plugin.unavailable }) }}</Message>
-        <Message v-if="serviceDownButOn(plugin) && !working[plugin.id]" severity="warn" :closable="false">{{ t('plugins.service_down_but_on') }}</Message>
-        <Message v-if="unreachable(plugin)" severity="warn" :closable="false">{{ t(unreachable(plugin), { why: plugin.healthDetail?.error ?? '' }) }}</Message>
+        <Message v-if="summary(plugin)?.why" :severity="summary(plugin).tone === 'bad' ? 'error' : 'warn'" :closable="false" name="plugin-why">{{ t(summary(plugin).why) }}</Message>
         <Message v-if="plugin.restartRequired" severity="info" :closable="false">{{ t('plugins.restart_required') }}</Message>
         <Message v-if="plugin.declaredOff" severity="warn" :closable="false">{{ t('plugins.declared_off', { why: plugin.declaredOff }) }}</Message>
         <Message v-if="plugin.error || plugin.loadError" severity="error" :closable="false">
