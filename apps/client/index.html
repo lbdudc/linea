@@ -6,7 +6,8 @@
       (function () {
         var stored, token;
         try { stored = localStorage.getItem('linea-theme'); } catch (e) { stored = null; }
-        document.documentElement.classList.add(stored === 'dark' ? 'dark-theme' : 'light-theme');
+        // dark unless the person chose light
+        document.documentElement.classList.add(stored === 'light' ? 'light-theme' : 'dark-theme');
         // the frame of the app is drawn before any script runs, only for a person who has a session (the login page has none)
         try { token = localStorage.getItem('token'); } catch (e) { token = null; }
         if (token && location.pathname.indexOf('/login') !== 0) {
