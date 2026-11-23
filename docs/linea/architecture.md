@@ -81,7 +81,7 @@ A line whose host is off stays listed; what needs its host answers `503 GIT_HOST
 
 Feature model analysis runs in a dedicated Python service rather than in-process: `plugins/analytics-plugin/service/` (FastAPI +
 flamapy). The plugin's server routes (`/api/plugins/analytics-plugin/analyze*`, also answering at the old `/api/lines/analyze*`) are a thin
-HTTP client to it (`FLAMAPY_API_URL`), and its client code fills the `featureModel.strip` and `featureModel.panels` slots of the model editor.
+HTTP client to it (the plugin's `url` setting), and its client code fills the `featureModel.strip` and `featureModel.panels` slots of the model editor.
 
 ### Why a separate service
 
@@ -117,7 +117,7 @@ gitHosts:
   local:  { dataDir: /data/repos }
   gitlab: { url: "https://gitlab.example.com", clientId: "${GITLAB_CLIENT_ID}", clientSecret: "${GITLAB_SECRET_ID}" }
 plugins:
-  analytics-plugin: { enabled: true, settings: { url: "${FLAMAPY_API_URL:-http://flamapy-server:8000}" } }
+  analytics-plugin: { enabled: true, settings: { url: "http://flamapy-server:8000" } }
   agents-plugin:    { enabled: false }
 ```
 
@@ -179,11 +179,9 @@ plugins:
 | `GITHUB_URL`, `GITHUB_API_URL`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | No | A GitHub (or GitHub Enterprise Server), the same as `gitHosts.github` |
 | `REGISTRY_DIR` | No | A folder with `metamodels/` and `modules/`: with `LINEA_REGISTRY=local:<group>/index` they are published into the `local` host at start (the Docker image has them in `/srv/registry`) |
 | `JWT_SIGN_KEY` | Yes | Secret used to sign LINEA JWTs |
-| `FLAMAPY_API_URL` | No | URL of the flamapy analysis service of the analytics plugin (default `http://flamapy-server:8000`; use `http://127.0.0.1:8000` for local dev outside Docker) |
 | `ADMIN_USERS` | No | Comma-separated usernames that are administrators: they can change git hosts, users and plugins |
 | `LINEA_PLUGINS` | No | Comma-separated plugin ids installed and enabled at start when nobody has decided about them yet |
 | `PLUGINS_DIR` | No | The folder of plugins (default: `plugins/` next to `linea/`) |
-| `AGENTS_URL`, `AGENTS_WEB_URL` | No | Where the agents plugin's service is, for LINEA (health, events) and for the browser |
 | `mongoUrl` | No | Full MongoDB URL (overrides constructed URL) |
 | `port` | No | HTTP server port (default 3000) |
 | `EVENT_WEBHOOK_URLS` | No | Comma-separated URLs that get a signed POST for each generated product (the enabled plugins' receivers get it too); with neither, nothing is sent |
@@ -192,5 +190,3 @@ plugins:
 | `PUBLIC_URL` | No | The address the git hosts reach LINEA at: the webhook LINEA asks a host to register (`POST /api/repos/:id/push-hook`) points at `PUBLIC_URL/api/webhooks/<host>` |
 
 > **Docker note:** env vars are read at container creation from the `env_file`. If you add/change a key in `.env` after the container was created, run `docker compose up -d --force-recreate server` to pick it up.
->
-> The `FLAMAPY_API_URL` in `docker-compose.yml` is set directly in the `environment:` block (`http://flamapy-server:8000`), which overrides the `env_file` value. You only need to change it in `.env` when running outside Docker.

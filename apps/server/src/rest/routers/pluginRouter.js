@@ -22,6 +22,9 @@ const change = (name, action) => [requireAdmin, audited(`plugin.${name}`, { targ
 pluginRouter.post('/:id/install', ...change('install', (id) => pluginHost.install(id)));
 pluginRouter.post('/:id/enable', ...change('enable', (id) => pluginHost.setEnabled(id, true)));
 pluginRouter.post('/:id/disable', ...change('disable', (id) => pluginHost.setEnabled(id, false)));
+pluginRouter.get('/:id/service/logs', requireAdmin, asyncHandler(async (req, res) => res.json(await pluginHost.serviceLogs(req.params.id, { tail: req.query.tail, service: req.query.service }))));
+pluginRouter.post('/:id/service/start', ...change('service.start', (id) => pluginHost.startService(id)));
+pluginRouter.post('/:id/service/stop', ...change('service.stop', (id) => pluginHost.stopService(id)));
 pluginRouter.delete('/:id', ...change('uninstall', (id) => pluginHost.uninstall(id)));
 
 // what an admin chose, as a linea.config.yml to keep (so the deployment survives a wiped database)

@@ -30,7 +30,9 @@ services:
 
   server:
     # the published image; `docker compose up --build` builds it from this checkout instead (with the plugins and the metamodels of
-    # the repositories next to it: lbdudc/linea-plugins, lbdudc/linea-metamodels)
+    # the repositories next to it: lbdudc/linea-plugins, lbdudc/linea-metamodels).
+    # The services some plugins run on (analysis, agents...) are not here: each plugin brings the compose file that adds its own to this
+    # one (`-f docker-compose.yml -f ../../linea-plugins/<plugin>/linea.compose.yml`, see linea-plugins/README.md).
     image: ghcr.io/lbdudc/linea-server:${LINEA_VERSION:-latest}
     build:
       context: ..
@@ -54,13 +56,8 @@ services:
       JWT_SIGN_KEY: ${JWT_SIGN_KEY:?set JWT_SIGN_KEY in deploy/.env (cp .env.example .env)}
       REDIRECT_URI: ${REDIRECT_URI:-http://localhost:${PROXY_PORT:-9000}}
       mongoUrl: ${MONGO_URL:-mongodb://mongo:27017/splalm?replicaSet=rs0&directConnection=true}
-      # the analytics plugin's service (see docker-compose.plugins.yml)
-      FLAMAPY_API_URL: ${FLAMAPY_API_URL:-http://flamapy-server:8000}
-      # the agents plugin: where its service is (LINEA's server calls it), and the key LINEA and the service share
-      AGENTS_URL: ${AGENTS_URL:-http://host.docker.internal:3001}
-      AGENTS_SERVICE_KEY: ${AGENTS_SERVICE_KEY:-}
-      # the keys of the services that act for people here: `id:secret,...` (the agents plugin's is the same AGENTS_SERVICE_KEY)
-      LINEA_SERVICE_KEYS: ${LINEA_SERVICE_KEYS:-${AGENTS_SERVICE_KEY:+agents-plugin:${AGENTS_SERVICE_KEY}}}
+      # the keys of the services that act for people here: `id:secret,...` (a plugin's service that needs one says which in its compose file)
+      LINEA_SERVICE_KEYS: ${LINEA_SERVICE_KEYS:-}
       # who may install and switch plugins, and see the settings (comma-separated usernames); on the local git host their accounts are
       # made at start with LINEA_ADMIN_PASSWORD
       ADMIN_USERS: ${ADMIN_USERS:-}

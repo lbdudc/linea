@@ -18,6 +18,18 @@ export default {
     return (await api.post(`/plugins/${id}/disable`)).data
   },
 
+  async serviceLogs(id, tail = 200, service = null) {
+    return (await api.get(`/plugins/${id}/service/logs`, { params: { tail, service: service || undefined } })).data
+  },
+
+  async startService(id) {
+    return (await api.post(`/plugins/${id}/service/start`)).data
+  },
+
+  async stopService(id) {
+    return (await api.post(`/plugins/${id}/service/stop`)).data
+  },
+
   async getSettings(id) {
     return (await api.get(`/plugins/${id}/settings`)).data
   },

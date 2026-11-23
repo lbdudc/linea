@@ -1,9 +1,10 @@
 import semver from 'semver';
 
 // What a plugin.json may say. The same fields are written down in docs/linea/plugins.md and docs/linea/plugin.schema.json.
-const KEYS = ['id', 'name', 'description', 'icon', 'version', 'requires', 'server', 'client', 'settings', 'serviceKey', 'remote'];
+const KEYS = ['id', 'name', 'description', 'icon', 'version', 'requires', 'server', 'client', 'settings', 'serviceKey', 'remote', 'service'];
 const REQUIRES_KEYS = ['linea', 'hostApi', 'gitHosts'];
 const REMOTE_KEYS = ['baseUrl', 'health', 'events', 'web'];
+const SERVICE_KEYS = ['compose', 'project', 'env'];
 const SETTING_TYPES = ['string', 'url', 'number', 'boolean', 'enum', 'list', 'secret'];
 const SETTING_KEYS = ['type', 'label', 'description', 'default', 'env', 'required', 'public', 'options', 'min', 'max', 'optionsFrom'];
 
@@ -45,6 +46,19 @@ export const validateManifest = (manifest) => {
       for (const key of Object.keys(remote)) if (!REMOTE_KEYS.includes(key)) warnings.push(`unknown key "remote.${key}"`);
       for (const key of REMOTE_KEYS) if (remote[key] !== undefined && !isText(remote[key])) errors.push(`"remote.${key}" must be text`);
       if (remote.health && !remote.baseUrl) errors.push('"remote.health" needs "remote.baseUrl"');
+    }
+  }
+
+  // the service the plugin runs in Docker: a compose file of its own folder, which LINEA starts when the plugin is switched on
+  const { service } = manifest;
+  if (service !== undefined) {
+    if (!service || typeof service !== 'object') errors.push('"service" must be an object');
+    else {
+      for (const key of Object.keys(service)) if (!SERVICE_KEYS.includes(key)) warnings.push(`unknown key "service.${key}"`);
+      if (!isText(service.compose)) errors.push('"service.compose" must be the path of a compose file inside the plugin\'s folder');
+      else if (service.compose.startsWith('/') || service.compose.split('/').includes('..')) errors.push('"service.compose" must stay inside the plugin\'s folder');
+      if (service.project !== undefined && !/^[a-z0-9][a-z0-9_-]*$/.test(String(service.project))) errors.push('"service.project" must be a compose project name (lowercase letters, digits, - and _)');
+      if (service.env !== undefined && !(service.env && typeof service.env === 'object' && Object.values(service.env).every(isText))) errors.push('"service.env" must be { NAME: text }');
     }
   }
 

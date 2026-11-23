@@ -19,10 +19,11 @@ PORT="$MONGO_PORT" DB_PATH="$DATA/mongo" node dev/mongo.js > "$DATA/mongo.log" 2
 until grep -q ready "$DATA/mongo.log" 2>/dev/null; do sleep 1; done
 # `dev` is an administrator (it can switch plugins in the Plugins view and sees the settings); the plugins in LINEA_PLUGINS are on from the first start
 PLUGINS="${LINEA_PLUGINS-analytics-plugin}"
-# the agents plugin (agents-plugin/service, see plugins/compose.yml) calls LINEA with this key and LINEA calls it at AGENTS_URL
+# LINEA_DEV_ENV=<file>: variables for this server that a plugin needs (the keys of its service...), e.g. ../../linea-plugins/agents-plugin/dev.env
+if [ -n "$LINEA_DEV_ENV" ]; then set -a; . "$LINEA_DEV_ENV"; set +a; fi
 # apps/server/.env may configure a real GitLab: a dev stack uses none unless it is asked for (an empty value wins over the file)
 NO_HOSTS="GITLAB_HOSTNAME= GITLAB_CLIENT_ID= GITLAB_SECRET_ID= GITHUB_URL= GITHUB_API_URL= GITHUB_CLIENT_ID= GITHUB_CLIENT_SECRET="
-COMMON="$NO_HOSTS ADMIN_USERS=dev LINEA_ADMIN_PASSWORD=devdevdev LINEA_PLUGINS=$PLUGINS AGENTS_SERVICE_KEY=dev-agents-key LINEA_SERVICE_KEYS=agents-plugin:dev-agents-key AGENTS_URL=${AGENTS_URL:-http://localhost:3001} port=$SERVER_PORT mongoUrl=mongodb://127.0.0.1:$MONGO_PORT/splalm?replicaSet=rs0 REDIRECT_URI=http://localhost:$CLIENT_PORT JWT_SIGN_KEY=dev-sign-key LINEA_LOCAL_EXPORT_DIR=$DATA/lines LINEA_LOCAL_PRODUCTS_DIR=$DATA/products"
+COMMON="$NO_HOSTS ADMIN_USERS=dev LINEA_ADMIN_PASSWORD=devdevdev LINEA_PLUGINS=$PLUGINS port=$SERVER_PORT mongoUrl=mongodb://127.0.0.1:$MONGO_PORT/splalm?replicaSet=rs0 REDIRECT_URI=http://localhost:$CLIENT_PORT JWT_SIGN_KEY=dev-sign-key LINEA_LOCAL_EXPORT_DIR=$DATA/lines LINEA_LOCAL_PRODUCTS_DIR=$DATA/products"
 # GIT_HOSTS=local,gitlab,github runs those hosts together (the first is the primary one); GIT_PROVIDER=<host> is the same with one
 GIT_HOSTS="${GIT_HOSTS:-${GIT_PROVIDER:-local}}"
 GITLAB_PORT="${GITLAB_PORT:-8081}"

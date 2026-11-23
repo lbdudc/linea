@@ -22,7 +22,7 @@ cd server && port=3000 mongoUrl='mongodb://127.0.0.1:27017/splalm?replicaSet=rs0
 cd client && npx vite --port 9000 --strictPort
 ```
 
-Open <http://localhost:9000>. The dev user is an administrator (`ADMIN_USERS=dev`) and `npm run dev:up` starts with the modules and analytics plugins on (`LINEA_PLUGINS`); the others are one click away in **Plugins** (see `plugins/README.md`). The analysis service of the analytics plugin (and the agents application) is `cd plugins && docker compose --env-file <env> up -d --build` (see `plugins/compose.yml`). The environment variables on the command line win over `server/.env`, so your real settings are not touched.
+Open <http://localhost:9000>. The dev user is an administrator (`ADMIN_USERS=dev`) and `npm run dev:up` starts with the modules and analytics plugins on (`LINEA_PLUGINS`); the others are one click away in **Plugins** (see `plugins/README.md`). The services of the plugins (analysis, agents) start from the **Plugins** view (enabling a plugin runs the compose file named in its `plugin.json`), or by hand from the plugins' repository (`linea-plugins/compose.yml`); a plugin that needs variables on this server has a `dev.env` for `LINEA_DEV_ENV=<file> npm run dev:up`. The environment variables on the command line win over `server/.env`, so your real settings are not touched.
 The dev GitLab and Mongo go together: if you restart the GitLab, also clear `server/.dev-data` (and restart Mongo), or LINEA will
 remember lines whose repositories are gone.
 
