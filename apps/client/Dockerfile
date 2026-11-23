@@ -9,7 +9,7 @@
 #
 FROM scratch AS plugins
 
-FROM node:22
+FROM node:22 AS build
 WORKDIR /srv
 ENV NPM_CONFIG_FETCH_RETRIES=5 NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000
 
@@ -37,5 +37,12 @@ ENV PLUGINS_DIR=/plugins
 WORKDIR /srv/apps/client
 RUN npm run build
 
+
+# The runtime carries the built files and a static server, not the sources, the dev dependencies and the build tools.
+FROM node:22-slim
+WORKDIR /srv
+RUN npm install -g serve@14 && npm cache clean --force
+COPY --from=build /srv/apps/client/dist /srv/dist
+USER node
 EXPOSE 4000
-CMD ["npm", "start"]
+CMD ["serve", "-s", "dist", "--listen", "4000"]

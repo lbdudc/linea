@@ -72,7 +72,7 @@ The line between the core and the plugins is enforced by `apps/server/src/test/b
 
 ## Develop
 
-Node 22 (see `.nvmrc`) and MongoDB as a replica set (`docker compose -f deploy/docker-compose.yml up -d mongo mongo-init-replica`).
+Node 22 (see `.nvmrc`) and MongoDB as a replica set (`docker compose -f deploy/docker-compose.yml up -d mongo`).
 
 ```bash
 npm install

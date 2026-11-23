@@ -41,8 +41,13 @@ RUN npm run build -w @lbdudc/linea-core && npm run build -w @lbdudc/linea-git
 # --- the app ----------------------------------------------------------------------------------------------------------------------
 COPY apps/server/ apps/server/
 
-FROM node:22
+FROM node:22-slim
 WORKDIR /srv
+
+# git: the `local` git host runs it (http-backend, merge-tree). The slim image has none.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /srv /srv
 
@@ -58,6 +63,13 @@ ENV PLUGINS_DIR=/srv/plugins
 COPY --from=metamodels /metamodels/ /srv/registry/metamodels/
 ENV REGISTRY_DIR=/srv/registry
 
+# The server does not run as root. The entrypoint starts as root only to hand a volume made by an older (root) image over to `node`,
+# then drops to it; with `--user` or a rootless runtime it just runs.
+RUN mkdir -p /data/repos && chown node:node /data/repos
+COPY apps/server/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 WORKDIR /srv/apps/server
 EXPOSE 3000
-CMD ["npm", "start"]
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["node", "index.js"]

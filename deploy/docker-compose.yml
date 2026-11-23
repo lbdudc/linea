@@ -1,3 +1,10 @@
+# What every service does with its logs: a few files of 10 MB, so a long-running deployment does not fill the disk
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   mongo:
     image: mongo:8.2
@@ -6,27 +13,23 @@ services:
       - linea-network
     volumes:
       - mongo-data:/data/db
+    logging: *logging
     healthcheck:
-      # healthy once the replica set has a primary (mongo-init-replica starts it): the server needs one to start
-      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.hello().isWritablePrimary ? 0 : 1)"]
+      # the replica set is made by this very check (a single node, rs.initiate is idempotent): healthy once there is a primary, which the
+      # server needs to start
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - |
+          try { if (db.hello().isWritablePrimary) quit(0); } catch (e) {}
+          try { rs.status(); } catch (e) { try { rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "mongo:27017" }] }); } catch (e2) {} }
+          quit(1);
       interval: 3s
       timeout: 5s
       retries: 40
     restart: unless-stopped
-
-  mongo-init-replica:
-    image: mongo:8.2
-    depends_on: [mongo]
-    entrypoint: >
-      bash -c "
-      until mongosh --host mongo --eval 'db.runCommand({ ping: 1 })'; do sleep 2; done;
-      mongosh --host mongo /scripts/initiate-replica-set.js
-      "
-    volumes:
-      - ./initiate-replica-set.js:/scripts/initiate-replica-set.js
-    networks:
-      - linea-network
-    restart: "no"
 
   server:
     # the published image; `docker compose up --build` builds it from this checkout instead (with the plugins and the metamodels of
@@ -97,8 +100,9 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
-      mongo-init-replica:
-        condition: service_started
+    # node is not PID 1: `docker stop` reaches it as the signal it handles, instead of waiting out the grace time to kill it
+    init: true
+    logging: *logging
     restart: unless-stopped
     labels:
       # what the proxy serves from here: the API, and its websocket
@@ -128,6 +132,7 @@ services:
       - linea-network
     depends_on:
       - server
+    logging: *logging
     restart: unless-stopped
     labels:
       # everything that is not the API. The page itself is revalidated, so a new build's asset names are picked up at once; what Vite
@@ -163,6 +168,7 @@ services:
       - client
     networks:
       - linea-network
+    logging: *logging
     restart: unless-stopped
 
 networks:
