@@ -88,6 +88,10 @@ services:
       # Without it the Plugins view says "Docker unavailable" and the services are started by hand.
       LINEA_PLUGIN_RUNNER_URL: ${LINEA_PLUGIN_RUNNER_URL:-}
       LINEA_PLUGIN_RUNNER_KEY: ${PLUGIN_RUNNER_KEY:-}
+      # where the server finds the plugins' services: they publish their ports on the host, which a container reaches as host.docker.internal
+      # (`localhost`, the plugins' default, is this very container). A plugin's own setting (Configure, or linea.config.yml) still wins.
+      FLAMAPY_API_URL: ${FLAMAPY_API_URL:-http://host.docker.internal:8000}
+      AGENTS_URL: ${AGENTS_URL:-http://host.docker.internal:3001}
     # the services of the plugins publish their ports on this host: this is how the server reaches them (and they it)
     extra_hosts:
       - "host.docker.internal:host-gateway"

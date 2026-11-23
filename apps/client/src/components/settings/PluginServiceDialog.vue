@@ -239,7 +239,7 @@ const severityOf = (c) =>
         <Select v-model="tail" :options="tails" option-label="label" option-value="value" size="small" />
         <label class="svc__follow"><ToggleSwitch v-model="follow" /> {{ t('plugins.log_follow') }}</label>
         <Tag v-if="follow && live" :value="t('plugins.log_live')" severity="success" />
-        <Tag v-else-if="follow && reconnecting" :value="t('plugins.log_reconnecting')" severity="warn" />
+        <Tag v-else-if="follow && reconnecting && info?.containers?.length" :value="t('plugins.log_reconnecting')" severity="warn" />
         <span class="svc__spacer" />
         <Button icon="pi pi-refresh" size="small" severity="secondary" text :aria-label="t('plugins.refresh')" :loading="loading" @click="restartLogs" />
         <Button icon="pi pi-copy" size="small" severity="secondary" text :aria-label="t('plugins.log_copy')" :disabled="!logText" @click="copy" />
