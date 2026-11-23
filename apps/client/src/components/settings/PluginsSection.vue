@@ -86,8 +86,21 @@ const SERVICE_LOOK = {
 const serviceTag = (plugin) => {
   // while a start or stop of it is in flight the containers are changing: say so instead of the state of a moment ago
   if (working.value[plugin.id]) return { label: t(`plugins.service_${working.value[plugin.id]}`), severity: 'warn', pending: true }
+  // LINEA cannot see Docker here (its own container, say) but the service answers: someone else runs it, and that is not a problem
+  if (external(plugin)) return { label: t('plugins.service_external'), severity: 'secondary' }
   const [key, severity] = SERVICE_LOOK[plugin.serviceState?.state] ?? SERVICE_LOOK.stopped
   return { label: t(`plugins.${key}`), severity }
+}
+const external = (plugin) => plugin.serviceState?.state === 'unavailable' && plugin.health === 'up'
+// no Docker to start or stop it with, so there are no controls (the row says why in its tooltip)
+const manageable = (plugin) => Boolean(plugin.serviceState) && plugin.serviceState.state !== 'unavailable'
+// what the page tells about a plugin that is on and whose service does not answer, when the service row does not already say it
+const unreachable = (plugin) => {
+  if (!plugin.enabled || plugin.health !== 'down' || working.value[plugin.id]) return null
+  const state = plugin.serviceState?.state
+  if (state === 'running') return 'plugins.service_up_unreachable'
+  if (!plugin.serviceState || state === 'unavailable') return 'plugins.service_unreachable'
+  return null
 }
 const serviceUp = (plugin) => ['running', 'starting', 'degraded'].includes(plugin.serviceState?.state)
 // plugins enabled whose service is not up: the page says it (the plugin is on, what it needs is not)
@@ -167,7 +180,7 @@ const act = async (plugin, action) => {
           </div>
           <div v-if="plugin.serviceState">
             <dt>{{ t('plugins.service') }}</dt>
-            <dd v-tooltip.top="plugin.serviceState.error ? t('plugins.service_hint', { why: plugin.serviceState.error }) : ''">
+            <dd v-tooltip.top="external(plugin) ? t('plugins.service_external_hint') : plugin.serviceState.error ? t('plugins.service_hint', { why: plugin.serviceState.error }) : ''">
               <i v-if="serviceTag(plugin).pending" class="pi pi-spin pi-spinner plugin__spin" />
               <span v-else :class="['plugin__dot', `plugin__dot--${serviceTag(plugin).severity}`]" />
               {{ serviceTag(plugin).label }}
@@ -188,6 +201,7 @@ const act = async (plugin, action) => {
         </Message>
         <Message v-if="plugin.unavailable" severity="warn" :closable="false">{{ t('plugins.unavailable', { why: plugin.unavailable }) }}</Message>
         <Message v-if="serviceDownButOn(plugin) && !working[plugin.id]" severity="warn" :closable="false">{{ t('plugins.service_down_but_on') }}</Message>
+        <Message v-if="unreachable(plugin)" severity="warn" :closable="false">{{ t(unreachable(plugin), { why: plugin.healthDetail?.error ?? '' }) }}</Message>
         <Message v-if="plugin.restartRequired" severity="info" :closable="false">{{ t('plugins.restart_required') }}</Message>
         <Message v-if="plugin.declaredOff" severity="warn" :closable="false">{{ t('plugins.declared_off', { why: plugin.declaredOff }) }}</Message>
         <Message v-if="plugin.error || plugin.loadError" severity="error" :closable="false">
@@ -220,7 +234,7 @@ const act = async (plugin, action) => {
               :disabled="plugin.declared" :loading="busy === plugin.id"
               @click="act(plugin, 'disable')"
             />
-            <template v-if="plugin.serviceState">
+            <template v-if="manageable(plugin)">
               <Button
                 v-if="!serviceUp(plugin)"
                 icon="pi pi-play" size="small" severity="secondary" outlined name="plugin-service-start"
