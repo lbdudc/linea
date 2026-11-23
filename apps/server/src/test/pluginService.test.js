@@ -52,7 +52,7 @@ test('enabling a plugin starts its compose file, disabling stops it', async () =
 
   await host.setEnabled('a-plugin', true);
   const up = calls.find((call) => call.args.includes('up'));
-  expect(up.args).toEqual(['compose', '-p', 'linea-a-plugin', '-f', path.join(dir, 'a-plugin/service/compose.yml'), 'up', '-d', '--build']);
+  expect(up.args).toEqual(['compose', '-p', 'linea-a-plugin', '-f', path.join(dir, 'a-plugin/service/compose.yml'), 'up', '-d', '--build', '--remove-orphans']);
   // the plugin's setting reaches the compose file under its env name, and LINEA's address as a container sees it
   expect(up.env).toMatchObject({ KEY: 'k1', LINEA_API_URL: 'http://host.docker.internal:3100' });
   expect((await host.list())[0].serviceState).toMatchObject({ state: 'running' });

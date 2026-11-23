@@ -66,7 +66,7 @@ export class ServiceRunner {
   }
 
   async start(plugin, env) {
-    await this.#exec(this.#args(plugin, 'up', '-d', '--build'), { cwd: plugin.dir, env });
+    await this.#exec(this.#args(plugin, 'up', '-d', '--build', '--remove-orphans'), { cwd: plugin.dir, env });
   }
 
   /** `stop`, not `down`: the containers and their data stay for the next start. */
