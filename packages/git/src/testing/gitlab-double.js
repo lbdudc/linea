@@ -8,6 +8,10 @@ const CLIENT_ERROR_JSON = (message) => ({ error: message, message });
 
 const sha1For = (seedText) => crypto.createHash('sha1').update(seedText).digest('hex');
 
+// What a tree holds, as one digest: a commit id that does not depend on it names two different states with the same id (as two projects
+// numbered alike that publish different files under one message do), and anything that keys a cache by commit would serve the wrong one.
+const treeDigest = (tree) => sha1For([...tree.entries()].sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)).map(([filePath, content]) => `${filePath}:${sha1For(content)}`).join('\n'));
+
 const shortId = (sha) => sha.slice(0, 8);
 
 const slugify = (name) =>
@@ -61,7 +65,7 @@ class ProjectState {
 
   #newCommit({ tree, parent, message }) {
     const seq = this.commits.size + 1;
-    const id = sha1For(`${this.id}|${seq}|${message}`);
+    const id = sha1For(`${this.id}|${seq}|${message}|${treeDigest(tree)}`);
     const commit = {
       id,
       short_id: shortId(id),
@@ -756,7 +760,7 @@ export function createGitlabDoubleApp(webBase = 'http://gitlab-double.local') {
       if (!target.tree.has(path) && !revertedTree.has(path)) revertedTree.set(path, parentTree.get(path));
     }
     const seq = project.commits.size + 1;
-    const id = sha1For(`${project.id}|revert|${seq}`);
+    const id = sha1For(`${project.id}|revert|${seq}|${treeDigest(revertedTree)}`);
     const revertCommit = {
       id, short_id: shortId(id), title: `Revert "${target.title}"`, message: `Revert "${target.title}"`,
       parent_ids: [headSha], created_at: new Date().toISOString(), author_name: 'gitlab-double',
