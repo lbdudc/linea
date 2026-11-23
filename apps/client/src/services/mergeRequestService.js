@@ -13,8 +13,9 @@ export default {
   },
 
   async list({ kind, id, filter = {} }) {
-    const { labels, ...rest } = filter
-    const params = Object.fromEntries(Object.entries({ ...rest, labels: labels?.length ? labels.join(',') : undefined }).filter(([, value]) => value !== undefined && value !== '' && value !== 'all'))
+    const { labels, origin, ...rest } = filter
+    // `origin: 'all'` is the server's default and is left out; `state: 'all'` is not (the hosts' default is the open ones)
+    const params = Object.fromEntries(Object.entries({ ...rest, origin: origin === 'all' ? undefined : origin, labels: labels?.length ? labels.join(',') : undefined }).filter(([, value]) => value !== undefined && value !== ''))
     return (await api.get(base(kind, id), { params })).data
   },
 
