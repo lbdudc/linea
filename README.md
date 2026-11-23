@@ -7,7 +7,7 @@
 Lifecycle management for **software product lines** (SPLs): model a line (features, metamodels, modules), derive a product for each customer,
 and keep both alive in git (branches, merge requests, CI, deployments). Works with its own built-in git host, GitLab or GitHub.
 
-Documentation: **https://lbdudc.github.io/linea-web/** · Plugins: [`lbdudc/linea-plugins`](https://github.com/lbdudc/linea-plugins) · Metamodels: [`lbdudc/linea-metamodels`](https://github.com/lbdudc/linea-metamodels)
+Documentation: **https://lbdudc.github.io/linea-web/** · Plugins: [`lbdudc/linea-plugins`](https://github.com/lbdudc/linea-plugins) · Metamodels: [`lbdudc/linea-metamodels`](https://github.com/lbdudc/linea-metamodels) · Examples: [`lbdudc/linea-examples`](https://github.com/lbdudc/linea-examples)
 
 ## Run it with Docker
 

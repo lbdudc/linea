@@ -1,6 +1,0 @@
-selection of Phones {
-  select Oled
-  select Camera
-  select Rear
-  select Gps
-}
