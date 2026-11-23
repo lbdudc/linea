@@ -403,8 +403,6 @@ export default {
 
 
 
-    // Consolidation Console — sidebar + launch buttons
-
     // Run header actions (Cancel / Delete)
 
     product_comparison_title: 'Product comparison',
@@ -1777,6 +1775,7 @@ export default {
     reason_mentioned: '{actor} mentioned you',
     reason_state: '{actor} changed the state to {state}',
     reason_comment: '{actor} commented',
+    reason_waiting: '{actor} is waiting for you',
     state_opened: 'opened',
     state_closed: 'closed',
     state_merged: 'merged',

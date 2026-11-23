@@ -84,6 +84,17 @@ export default class NotificationService {
     return created.length ? Notification.insertMany(created) : [];
   };
 
+  /**
+   * Tells the person themselves that something waits for them on an issue or a merge request: what a plugin acting for them (the
+   * agents) writes on the host carries their own name, so the events above never tell them. The same unread one is not told twice.
+   */
+  notifySelf = async ({ userId, subject, target, number, title, actor, excerpt }) => {
+    const same = { userId, reason: 'waiting', subject, 'target.kind': target.kind, 'target.id': String(target.id), number, read: false, excerpt: excerptOf(excerpt) };
+    const existing = await Notification.findOne(same).lean();
+    if (existing) return existing;
+    return Notification.create({ userId, reason: 'waiting', subject, target: { kind: target.kind, id: String(target.id), name: target.name }, number, title, actor, excerpt: excerptOf(excerpt) });
+  };
+
   list = async ({ userId, unread = false, page = 1 }) => {
     const filter = { userId, ...(unread ? { read: false } : {}) };
     const items = await Notification.find(filter).sort({ createdAt: -1 }).skip((page - 1) * PAGE_SIZE).limit(PAGE_SIZE + 1).lean();

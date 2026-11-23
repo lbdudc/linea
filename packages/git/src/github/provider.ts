@@ -1,6 +1,6 @@
 import crypto from 'node:crypto'
 import type {
-  AccessEntry, AuthConfig, Capabilities, ChangeRequest, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitProvider, Id, Issue, IssueChanges, IssueFilter, HostUser, Label, Member,
+  AccessEntry, AuthConfig, Capabilities, ChangeRequest, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitProvider, Id, Issue, IssueChanges, IssueFilter, HostUser, Label, LabelEvent, Member,
   MergeOptions, MergeRequest, MergeRequestChanges, MergeRequestFilter, Milestone, Namespace, Page, Pipeline, PipelineJob, Release, ReleaseChanges, Repository, RepositoryFile, Template, TemplateKind, Thread, Tokens, PendingDeletion
 } from '../provider.js'
 import { ACCESS } from '../access.js'
@@ -714,6 +714,15 @@ export class GitHubProvider implements GitProvider {
   async listIssueComments({ token, id, number }: { token: string, id: Id, number: number }): Promise<Comment[]> {
     const repo = await this.repoJson(token, id)
     return (await this.client.paginate({ token, path: `/repos/${repo.full_name}/issues/${number}/comments` })).map((json) => this.toComment(json))
+  }
+
+  async listIssueLabelEvents({ token, id, number }: { token: string, id: Id, number: number }): Promise<LabelEvent[]> {
+    const repo = await this.repoJson(token, id)
+    const events = await this.client.paginate({ token, path: `/repos/${repo.full_name}/issues/${number}/events` })
+    return events
+      .filter((event) => (event.event === 'labeled' || event.event === 'unlabeled') && event.label?.name)
+      .map((event): LabelEvent => ({ label: event.label.name, action: event.event === 'unlabeled' ? 'removed' : 'added', author: event.actor?.login, createdAt: event.created_at }))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
   }
 
   async addIssueComment({ token, id, number, body }: { token: string, id: Id, number: number, body: string }): Promise<Comment> {

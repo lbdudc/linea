@@ -38,7 +38,8 @@ test('the core never names a plugin', () => {
     if (/['"`][a-z]+-plugin['"`]/.test(text)) offenders.push(`${path.relative(linea, file)} names a plugin`);
   }
   // the plugin host and its catalog loader speak of plugins by nature; a migration names the plugins that used to be (to clean up after them)
-  expect(offenders.filter((line) => !/PluginHost|PluginRegistry|plugins\/host|plugins\/index|model\/migrations\//.test(line))).toEqual([]);
+  // (either separator: the paths are Windows' on Windows)
+  expect(offenders.filter((line) => !/PluginHost|PluginRegistry|plugins[\\/]host|plugins[\\/]index|model[\\/]migrations[\\/]/.test(line))).toEqual([]);
 });
 
 // (needs the plugins repository: linea-plugins next to this checkout, or PLUGINS_DIR)
@@ -86,13 +87,7 @@ test.skipIf(!withPlugins)('a plugin names no concrete git host library', () => {
 // (a plugin's own words go in its own messages: `ui.addI18n`).
 const SHARED_WORDS = {
   'analytics-plugin': ['labels.feature', 'error_messages.load_model'],
-  'agents-plugin': [
-    'labels.save', 'labels.history', 'labels.filter', 'labels.clear_filters', 'labels.cancel', 'labels.close', 'labels.new', 'labels.auto_detect',
-    'labels.pick_preset_image', 'labels.overview', 'labels.compare', 'labels.product_comparison_title', 'labels.product_count_badge',
-    'labels.differences_count_badge', 'labels.feature_column_header', 'labels.differences_section_header', 'labels.common_features_section_header',
-    'labels.no_feature_data_available', 'labels.col_conflicts', 'labels.never', 'labels.last_sync', 'labels.never_synced', 'labels.products',
-    'labels.sync_today', 'labels.sync_days_ago', 'labels.ws_connected', 'labels.ws_disconnected',
-  ],
+  'agents-plugin': ['labels.ws_connected', 'labels.ws_disconnected'],
 };
 
 const flat = (object, prefix = '') => Object.entries(object).flatMap(([key, value]) => (value && typeof value === 'object' ? flat(value, `${prefix}${key}.`) : [`${prefix}${key}`]));

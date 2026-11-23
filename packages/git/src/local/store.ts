@@ -55,6 +55,15 @@ export interface IssueRecord {
   closedAt: string | null
   comments: CommentRecord[]
   nextComment: number
+  /** The labels put on it and taken off it (older issues have none). */
+  labelEvents?: LabelEventRecord[]
+}
+
+export interface LabelEventRecord {
+  label: string
+  action: 'added' | 'removed'
+  author: string
+  createdAt: string
 }
 
 export interface TemplateRecord {

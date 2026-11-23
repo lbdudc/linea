@@ -96,6 +96,20 @@ const twoPeople = async () => {
   return { ana, bob, line, anaAuth: await session(ana), bobAuth: await session(bob) };
 };
 
+test('a plugin acting for a person tells them that something waits for them, only them, and once', async () => {
+  const { ana, bob, line, anaAuth } = await twoPeople();
+  const waiting = { subject: 'issue', target: { kind: 'line', id: String(line._id), name: 'L' }, number: 4, title: 'Dark mode', actor: 'SPL evolver', excerpt: 'A plan to approve' };
+  const made = await request(app()).post('/api/notifications').set('Authorization', anaAuth).send(waiting);
+  expect(made.status).toBe(201);
+  await request(app()).post('/api/notifications').set('Authorization', anaAuth).send(waiting);
+  const listed = await request(app()).get('/api/notifications').set('Authorization', anaAuth);
+  expect(listed.body.items).toEqual([expect.objectContaining({ reason: 'waiting', actor: 'SPL evolver', number: 4, title: 'Dark mode', read: false })]);
+  expect(await Notification.countDocuments({ userId: bob._id })).toBe(0);
+  expect(await Notification.countDocuments({ userId: ana._id })).toBe(1);
+  expect((await request(app()).post('/api/notifications').set('Authorization', anaAuth).send({ ...waiting, subject: 'commit' })).status).toBe(400);
+  expect((await request(app()).post('/api/notifications').send(waiting)).status).toBe(401);
+});
+
 test('an assignment tells the assignee, not the person who made it', async () => {
   const { ana, bob, line, anaAuth } = await twoPeople();
   await request(app()).post(`/api/lines/${line._id}/issues`).set('Authorization', anaAuth).send({ title: 'Fix it', assignees: ['bob', 'ana'] });

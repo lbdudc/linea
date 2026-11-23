@@ -56,6 +56,10 @@ export default class IssueController {
     res.status(200).send(await this.issueService.listComments({ ...this.#target(req), number: Number(req.params.number) }));
   });
 
+  listLabelEvents = asyncHandler(async (req, res) => {
+    res.status(200).send(await this.issueService.listLabelEvents({ ...this.#target(req), number: Number(req.params.number) }));
+  });
+
   addComment = asyncHandler(async (req, res) => {
     res.status(201).send(await this.issueService.addComment({ ...this.#target(req), number: Number(req.params.number), body: req.body.body }));
   });

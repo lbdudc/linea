@@ -124,58 +124,11 @@ export default class LineController {
     res.sendStatus(204);
   });
 
-  /**
-   * POST /:id/plan-branch
-   * Creates a plan working branch (or reuses an existing one if `branch` is provided)
-   * and commits the proposed FM content to it. Returns { branch } so the FM editor
-   * can hand it to a changeset run as `input: { origin: 'branch', branch }`.
-   */
-  commitFmToPlanBranch = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { content, branch: existingBranch, message } = req.body;
-    if (!content) { res.status(400).send({ error: 'errors.bad_request' }); return; }
-
-    const lineService = this.lineService;
-    let branch = existingBranch;
-
-    if (!branch) {
-      // Create a new plan branch from main.
-      const result = await lineService.createPlanBranch({
-        id,
-        userId: req.userId,
-        slug: 'fm-edit',
-      });
-      branch = result.branch;
-    }
-
-    // the feature model is a model of the feature metamodel: its text goes in as it is
-    const toCommit = content;
-
-    await lineService.commitToPlanBranch({
-      id,
-      userId: req.userId,
-      branch,
-      actions: [{ action: 'update', file_path: FEATURE_MODEL_PATH, content: toCommit }],
-      message: message ?? 'FM edit from editor',
-    });
-
-    res.status(200).send({ branch });
-  });
-
   /** The products of a line as stored, with their spec read from the git host when `spec=1` (what a tool that analyses the family needs). */
   listProducts = asyncHandler(async (req, res) => {
     // `cut=1`: fail (503) instead of serving a stored spec when the git host cannot be read: for a caller that must not decide on a stale one
     const products = await this.lineService.findProductsByLineId({ id: req.params.id, userId: req.userId, specFromRepo: req.query.spec === '1', cutOnInfra: req.query.cut === '1' });
     res.status(200).send(products.map((product) => product.toObject()));
-  });
-
-  /** Commits file changes to a plan branch (made from main when no branch is given). */
-  commitToPlanBranch = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { actions, message } = req.body;
-    const branch = req.body.branch ?? (await this.lineService.createPlanBranch({ id, userId: req.userId, slug: req.body.slug })).branch;
-    await this.lineService.commitToPlanBranch({ id, userId: req.userId, branch, actions, message });
-    res.status(200).send({ branch });
   });
 
   /** Tries a derivation of the line for a configuration; nothing is created. */
@@ -191,12 +144,6 @@ export default class LineController {
   checkTrialModels = asyncHandler(async (req, res) => {
     const { models, features, lineRef, overrides, spec } = req.body;
     res.status(200).send(await this.modularService.checkTrialModels({ id: req.params.id, userId: req.userId, ref: lineRef, overrides, models, features, spec }));
-  });
-
-  /** Merges a plan branch into main through a merge request. */
-  mergePlanBranch = asyncHandler(async (req, res) => {
-    const result = await this.lineService.mergePlanBranch({ id: req.params.id, userId: req.userId, branch: req.body.branch, title: req.body.title });
-    res.status(200).send(result);
   });
 
   reconcileLines = asyncHandler(async (req, res) => {

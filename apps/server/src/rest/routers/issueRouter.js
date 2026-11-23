@@ -23,5 +23,7 @@ export default (kind) => {
   router.patch('/:number', requireAuth, updateIssueValidator, controller.update);
   router.get('/:number/comments', requireAuth, issueNumberValidator, controller.listComments);
   router.post('/:number/comments', requireAuth, issueCommentValidator, controller.addComment);
+  // the labels put on it and taken off it: who and when
+  router.get('/:number/label-events', requireAuth, issueNumberValidator, controller.listLabelEvents);
   return router;
 };

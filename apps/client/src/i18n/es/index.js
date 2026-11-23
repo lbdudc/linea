@@ -1829,6 +1829,7 @@ export default {
     reason_mentioned: '{actor} te mencionó',
     reason_state: '{actor} cambió el estado a {state}',
     reason_comment: '{actor} comentó',
+    reason_waiting: '{actor} te está esperando',
     state_opened: 'abierto',
     state_closed: 'cerrado',
     state_merged: 'fusionado',

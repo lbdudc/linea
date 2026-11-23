@@ -14,6 +14,8 @@ import AttentionInbox from 'components/home/AttentionInbox.vue'
 import HomeViewSwitch from 'components/home/HomeViewSwitch.vue'
 import LinesHealthCard from 'components/home/LinesHealthCard.vue'
 import NeedYouPill from 'components/home/NeedYouPill.vue'
+import PluginSlot from 'components/common/PluginSlot.vue'
+import { slotItems } from 'src/plugins/registry'
 import { useDashboardSummary, changeBetween } from 'src/composables/useDashboardSummary'
 import { useDeploymentsOverview } from 'src/composables/useDeploymentsOverview'
 import { homeView } from 'stores/homeView'
@@ -80,6 +82,8 @@ watch(inboxAll, () => { if (inboxFilter.value !== 'all' && inboxCounts.value[inb
 
 const showInbox = computed(() => homeView.view !== 'panel')
 const showPanel = computed(() => homeView.view !== 'inbox')
+// whether a plugin put something on the home
+const pluginWidgets = computed(() => slotItems('dashboard.widgets', { view: homeView.view }).length > 0)
 const chartHeight = computed(() => (homeView.view === 'panel' ? 260 : 112))
 
 const lineCards = computed(() => {
@@ -129,6 +133,11 @@ onMounted(() => {
           :counts="inboxCounts"
           :loading="inboxLoading && inboxAll.length === 0"
         />
+
+        <!-- what the plugins add to the home (the agents' issues waiting for the person, say), in both views -->
+        <div v-if="pluginWidgets" class="dashboard__widgets">
+          <PluginSlot name="dashboard.widgets" :context="{ view: homeView.view }" />
+        </div>
 
         <template v-if="showPanel">
           <div class="dashboard__cards">
@@ -208,6 +217,12 @@ onMounted(() => {
   flex-direction: column;
   gap: 14px;
   width: 100%;
+}
+
+.dashboard__widgets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
 }
 
 .dashboard__cards {

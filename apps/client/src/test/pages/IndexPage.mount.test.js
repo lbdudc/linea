@@ -29,8 +29,10 @@ function makeProducts(lines) {
   }))
 }
 
-async function mountIndexPage({ healthImpl, allPipelinesPass = false } = {}) {
+async function mountIndexPage({ healthImpl, allPipelinesPass = false, prepare } = {}) {
   vi.resetModules()
+  // (after the reset: what the page will import afresh, the plugins' registry say)
+  await prepare?.()
   push.mockClear()
 
   const lines = makeLines(3)
@@ -185,5 +187,23 @@ describe('IndexPage — the home with the inbox and the panel', () => {
     await flush()
 
     expect(wrapper.find('[name="inbox-healthy"]').exists()).toBe(true)
+  })
+
+  it('shows what a plugin puts on the home, and nothing of it when none does', async () => {
+    const { h, markRaw } = await import('vue')
+    const first = await mountIndexPage()
+    await flush()
+    expect(first.wrapper.find('.dashboard__widgets').exists()).toBe(false)
+    first.wrapper.unmount()
+
+    const widget = markRaw({ props: ['view'], render() { return h('p', { class: 'widget' }, `a widget in ${this.view}`) } })
+    const { wrapper } = await mountIndexPage({
+      prepare: async () => {
+        const { contributions } = await import('src/plugins/registry')
+        contributions.slots['dashboard.widgets'] = [{ id: 'p:widget', component: widget }]
+      },
+    })
+    await flush()
+    expect(wrapper.find('.dashboard__widgets .widget').text()).toBe('a widget in all')
   })
 })

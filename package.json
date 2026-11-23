@@ -12,7 +12,8 @@
     "node": ">=20.11"
   },
   "scripts": {
-    "dev": "concurrently \"npm run dev -w @lbdudc/linea-server\" \"npm run dev -w @lbdudc/linea-client\"",
+    "dev": "concurrently -n server,client,agents \"npm run dev -w @lbdudc/linea-server\" \"npm run dev -w @lbdudc/linea-client\" \"npm run agents\"",
+    "agents": "cd ../linea-plugins/agents-plugin/service/server && npm run dev",
     "build": "npm run build -w @lbdudc/linea-core && npm run build -w @lbdudc/linea-git",
     "build:all": "npm run build && npm run build -w @lbdudc/linea-client",
     "test": "npm run build && npm test -w @lbdudc/linea-core -w @lbdudc/linea-git -w @lbdudc/linea-ci -w @lbdudc/linea-cli -w @lbdudc/linea-server -w @lbdudc/linea-client",

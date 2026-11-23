@@ -1564,6 +1564,7 @@ export default {
       reason_mentioned: '{actor} mencionoute',
       reason_state: '{actor} cambiou o estado a {state}',
       reason_comment: '{actor} comentou',
+      reason_waiting: '{actor} está á túa espera',
       state_opened: 'aberto',
       state_closed: 'pechado',
       state_merged: 'fusionado',

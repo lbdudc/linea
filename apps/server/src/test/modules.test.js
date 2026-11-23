@@ -12,6 +12,7 @@ import { LineModularReadOnlyError, LineNotModularError, PackageNotFoundError, Pa
 import { setup, clear, teardown } from '../test/setup.js';
 import { setupGitlabDouble, resetGitlabDouble, teardownGitlabDouble, gitlabDouble } from '../test/support/withGitlabDouble.js';
 import { upsertFiles } from '../model/services/modules/hosts.js';
+import { featureMetamodelVersion } from '../test/support/featureMetamodel.js';
 import { hostOf } from '../model/git/hosts.js';
 
 // each test publishes packages and runs metamodel engines: slower than the default 5s when the whole suite runs in parallel
@@ -177,7 +178,7 @@ test('a modular line, its product and its models, from the registry to a generat
   const saved = await modularService.saveLineModules({ id: line._id, userId: user._id, modules: { [um.location]: '^0.1.0' } });
   // (the feature metamodel, and the library it imports, are in every SPL)
   expect(saved.packages.map((p) => `${p.kind}:${p.name}@${p.version}`).sort()).toEqual([
-    'metamodel:basic@0.1.0', 'metamodel:common@1.1.0', 'metamodel:datamodel@0.1.0', 'metamodel:featuremodel@1.0.0', 'module:user-management@0.1.0',
+    'metamodel:basic@0.1.0', 'metamodel:common@1.1.0', 'metamodel:datamodel@0.1.0', `metamodel:featuremodel@${featureMetamodelVersion()}`, 'module:user-management@0.1.0',
   ]);
   const repo = gitlabDouble().getProject(line.repoId).treeAt('main');
   expect(JSON.parse(repo.get('linea.lock.json').toString()).packages[um.location]).toMatchObject({ kind: 'module', version: '0.1.0' });

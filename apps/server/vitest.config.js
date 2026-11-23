@@ -18,5 +18,8 @@ export default defineConfig({
     setupFiles: ['./src/test/support/env.setup.js', './src/test/support/netProbe.setup.js'],
     hookTimeout: 30000,
     testTimeout: 30000,
+    // not too many files at once: each that uses the local git host starts its own git processes, and a machine with many cores ran
+    // so many together that they timed out
+    poolOptions: { threads: { maxThreads: 4, minThreads: 1 } },
   },
 })

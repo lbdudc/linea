@@ -8,6 +8,9 @@ import { createGitProvider, publishFolder } from '@lbdudc/linea-git';
 const METAMODELS = path.join(process.env.LINEA_METAMODELS_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../../../linea-metamodels'), 'metamodels');
 const KINDS = ['grammars', 'constraints', 'specs', 'imports', 'scopes', 'visualizations', 'cases'];
 
+/** The version of the feature metamodel of the workspace (it moves on with it: a test does not write it down). */
+export const featureMetamodelVersion = () => JSON.parse(fs.readFileSync(path.join(METAMODELS, 'featuremodel', 'metamodel.json'), 'utf8')).version;
+
 /**
  * Publishes the feature metamodel and the grammar it imports into a GitLab double, at `gitlab:linea/metamodels/featuremodel` (where a
  * server that was not told otherwise looks for it): every SPL has it, so every test that makes a line needs it to be there.

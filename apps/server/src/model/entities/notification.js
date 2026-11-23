@@ -4,7 +4,8 @@ const RETENTION_SECONDS = 90 * 24 * 60 * 60;
 
 const notificationSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  reason: { type: String, enum: ['assigned', 'mentioned', 'state', 'comment', 'failed', 'conflicts', 'stuck'], required: true },
+  // waiting: something waits for the person (a plugin acting for them says so: an agent's plan to approve, say)
+  reason: { type: String, enum: ['assigned', 'mentioned', 'state', 'comment', 'failed', 'conflicts', 'stuck', 'waiting'], required: true },
   subject: { type: String, enum: ['issue', 'mr', 'run'], required: true },
   target: {
     kind: { type: String, enum: ['line', 'product', 'repo'], required: true },

@@ -600,6 +600,19 @@ export const describeGitProviderContract = ({ name, makeProvider, addMember, sig
         expect((await git.getIssue({ token, id, number: issue.number })).commentCount).toBe(2);
       });
 
+      it('tells who put each label on an issue and took it off, and when', async () => {
+        const git = makeProvider();
+        const { repository } = await repoIn(git);
+        const id = repository.id;
+        const issue = await git.createIssue({ token, id, title: 'Dark mode', labels: ['feature'] });
+        await git.updateIssue({ token, id, number: issue.number, changes: { labels: ['feature', 'agent::evolve'] } });
+        await git.updateIssue({ token, id, number: issue.number, changes: { labels: ['agent::evolve'] } });
+        const events = await git.listIssueLabelEvents({ token, id, number: issue.number });
+        expect(events.map((e) => `${e.action} ${e.label}`)).toEqual(['added feature', 'added agent::evolve', 'removed feature']);
+        expect(typeof events[0].author).toBe('string');
+        expect(typeof events[0].createdAt).toBe('string');
+      });
+
       it('lists the labels and the milestones to choose from', async () => {
         const git = makeProvider();
         const { repository } = await repoIn(git);

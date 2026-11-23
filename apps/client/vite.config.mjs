@@ -79,6 +79,9 @@ export default defineConfig(({ command }) => {
     ],
 
     server: {
+      // Vite 2 defaults to 3000, the server's port; OAuth's REDIRECT_URI and API_URL expect the client on 9000
+      port: 9000,
+      strictPort: true,
       open: true,
       // the plugins (their own repository, linea-plugins, next to this checkout) are part of the app
       fs: { allow: [path.resolve(__dirname, '../..'), pluginsDir] },

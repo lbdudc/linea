@@ -1330,7 +1330,9 @@ export function createGitlabDoubleApp(webBase = 'http://gitlab-double.local') {
       assignees: (assignee_ids ?? []).map(usernameOf),
       milestone: project.milestones.find((m) => m.id === milestone_id) ?? null,
       notes: [],
+      labelEvents: [],
     };
+    recordLabels(issue, [], issue.labels);
     project.issues.set(issue.iid, issue);
     res.status(201).json(issueJson(project, issue));
   });
@@ -1361,13 +1363,28 @@ export function createGitlabDoubleApp(webBase = 'http://gitlab-double.local') {
     const body = req.body ?? {};
     if (body.title !== undefined) issue.title = body.title;
     if (body.description !== undefined) issue.description = body.description;
-    if (body.labels !== undefined) issue.labels = String(body.labels).split(',').filter(Boolean);
+    if (body.labels !== undefined) {
+      const labels = String(body.labels).split(',').filter(Boolean);
+      recordLabels(issue, issue.labels, labels);
+      issue.labels = labels;
+    }
     if (body.assignee_ids !== undefined) issue.assignees = body.assignee_ids.map(usernameOf);
     if (body.milestone_id !== undefined) issue.milestone = project.milestones.find((m) => m.id === body.milestone_id) ?? null;
     if (body.state_event === 'close') { issue.state = 'closed'; issue.closed_at = new Date().toISOString(); }
     if (body.state_event === 'reopen') { issue.state = 'opened'; issue.closed_at = null; }
     issue.updated_at = new Date().toISOString();
     res.json(issueJson(project, issue));
+  });
+  // what GitLab keeps of each label put on an issue or taken off it
+  let labelEventId = 1;
+  function recordLabels(issue, before, after) {
+    const at = new Date().toISOString();
+    const event = (name, action) => ({ id: labelEventId++, action, label: { id: 0, name }, user: userJson('dev'), created_at: at, resource_type: 'Issue', resource_id: issue.iid });
+    issue.labelEvents.push(...before.filter((l) => !after.includes(l)).map((l) => event(l, 'remove')), ...after.filter((l) => !before.includes(l)).map((l) => event(l, 'add')));
+  }
+  router.get('/projects/:id/issues/:iid/resource_label_events', (req, res) => {
+    const [, issue] = issueOr404(req, res);
+    if (issue) res.json(issue.labelEvents);
   });
   router.get('/projects/:id/issues/:iid/notes', (req, res) => {
     const [, issue] = issueOr404(req, res);

@@ -106,6 +106,7 @@ const navItems = computed(() => [
     href: item.href,
     label: localized(item.label, instance?.proxy?.$i18n.locale),
     icon: item.icon,
+    badge: item.badge?.count ? { count: item.badge.count > 99 ? '99+' : String(item.badge.count), title: localized(item.badge.title, instance?.proxy?.$i18n.locale) } : null,
     isActive: (item.activeFor ?? (item.to ? [item.to] : [])).some((prefix) => route.path.startsWith(prefix)),
   })),
   // configuration is for administrators: the git hosts, the plugins and the people are sections of one view
@@ -218,11 +219,12 @@ onMounted(() => {
               v-else
               :to="item.path"
               :class="['app-nav__item', { 'app-nav__item--active': item.isActive }]"
-              :aria-label="item.label"
-              :title="item.label"
+              :aria-label="item.badge ? `${item.label} (${item.badge.count}${item.badge.title ? `: ${item.badge.title}` : ''})` : item.label"
+              :title="item.badge?.title ? `${item.label} · ${item.badge.title}` : item.label"
             >
               <i :class="['pi', item.icon, 'app-nav__icon']" aria-hidden="true" />
               <span>{{ item.label }}</span>
+              <b v-if="item.badge" class="app-nav__badge" aria-hidden="true">{{ item.badge.count }}</b>
             </router-link>
           </template>
         </nav>
@@ -480,6 +482,19 @@ onMounted(() => {
   &__icon {
     flex-shrink: 0;
     font-size: 16px;
+  }
+
+  // a count a plugin puts beside its item (it stays when narrow screens drop the names)
+  &__badge {
+    min-width: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--status-warn-soft);
+    color: var(--status-warn);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
   }
 }
 

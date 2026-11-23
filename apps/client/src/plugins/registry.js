@@ -6,7 +6,7 @@ import { reactive, markRaw } from 'vue'
  * object that `host.js` gives its `register(ui)`.
  */
 export const contributions = reactive({
-  nav: [], // { id, icon, label, to | href, activeFor, plugin } (`href` is a page outside LINEA, opened in its own tab)
+  nav: [], // { id, icon, label, to | href, activeFor, badge, plugin } (`href` is a page outside LINEA, opened in its own tab)
   slots: {}, // name -> [{ id, component, when, order, label, plugin }] (`label` names a tab in `line.tabs`)
 })
 
@@ -67,6 +67,15 @@ export const createUi = ({ plugin, router, i18n, layout, api, info = {} }) => ({
   api,
 
   addNav: (item) => upsert(contributions.nav, { ...item, plugin }),
+
+  /**
+   * A count beside one of this plugin's nav items (what waits for the person there, say): `count` a number (0 or null hides it),
+   * `title` what it means, a string or `{ en, es, gl }`.
+   */
+  setNavBadge: (id, count, { title } = {}) => {
+    const item = contributions.nav.find((existing) => existing.id === id && existing.plugin === plugin)
+    if (item) item.badge = count ? { count, title } : null
+  },
 
   /** A page for the plugin, in the app's layout. `path` is absolute, `component` a component or a function that imports it. */
   addRoute: ({ path, component, name, props }) => {

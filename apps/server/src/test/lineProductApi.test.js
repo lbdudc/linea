@@ -67,68 +67,6 @@ describe('GET /api/lines/:id/products', () => {
   });
 });
 
-describe('POST /api/lines/:id/plan-branch/commits', () => {
-  const actions = [{ action: 'update', file_path: 'src/platform/model.uvl', content: 'features\n  A' }];
-
-  test('commits to the given plan branch', async () => {
-    const create = vi.spyOn(lineService, 'createPlanBranch');
-    const commit = vi.spyOn(lineService, 'commitToPlanBranch').mockResolvedValue({ committed: true });
-
-    const res = await request(app).post('/api/lines/l1/plan-branch/commits').send({ branch: 'plan/fm-1', actions, message: 'm' });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ branch: 'plan/fm-1' });
-    expect(create).not.toHaveBeenCalled();
-    expect(commit).toHaveBeenCalledWith({ id: 'l1', userId: 'user-1', branch: 'plan/fm-1', actions, message: 'm' });
-  });
-
-  test('makes the branch from main when none is given', async () => {
-    vi.spyOn(lineService, 'createPlanBranch').mockResolvedValue({ branch: 'plan/change-9' });
-    const commit = vi.spyOn(lineService, 'commitToPlanBranch').mockResolvedValue({ committed: true });
-
-    const res = await request(app).post('/api/lines/l1/plan-branch/commits').send({ actions });
-
-    expect(res.body).toEqual({ branch: 'plan/change-9' });
-    expect(commit.mock.calls[0][0].branch).toBe('plan/change-9');
-  });
-
-  test.each([
-    ['main', [{ action: 'update', file_path: 'a', content: 'x' }], 'main'],
-    ['a path that climbs out', [{ action: 'update', file_path: '../x', content: 'x' }], 'plan/p'],
-    ['an absolute path', [{ action: 'update', file_path: '/etc/x', content: 'x' }], 'plan/p'],
-    ['an unknown action', [{ action: 'chmod', file_path: 'a' }], 'plan/p'],
-    ['no actions', [], 'plan/p'],
-  ])('refuses %s with a 400, without touching git', async (_name, badActions, branch) => {
-    const commit = vi.spyOn(lineService, 'commitToPlanBranch');
-
-    const res = await request(app).post('/api/lines/l1/plan-branch/commits').send({ branch, actions: badActions });
-
-    expect(res.status).toBe(400);
-    expect(commit).not.toHaveBeenCalled();
-  });
-});
-
-describe('POST /api/lines/:id/plan-branch/merge', () => {
-  test('merges the plan branch and returns the outcome', async () => {
-    const merge = vi.spyOn(lineService, 'mergePlanBranch').mockResolvedValue({ merged: true, conflicts: false, mrIid: 7 });
-
-    const res = await request(app).post('/api/lines/l1/plan-branch/merge').send({ branch: 'plan/fm-1', title: 'T' });
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ merged: true, conflicts: false, mrIid: 7 });
-    expect(merge).toHaveBeenCalledWith({ id: 'l1', userId: 'user-1', branch: 'plan/fm-1', title: 'T' });
-  });
-
-  test('never merges main into itself', async () => {
-    const merge = vi.spyOn(lineService, 'mergePlanBranch');
-
-    const res = await request(app).post('/api/lines/l1/plan-branch/merge').send({ branch: 'main' });
-
-    expect(res.status).toBe(400);
-    expect(merge).not.toHaveBeenCalled();
-  });
-});
-
 describe('GET /api/products/by-git-project/:projectId', () => {
   test('finds the product of a git project for someone who can read it', async () => {
     vi.spyOn(productService.productRepository, 'findByRepoId').mockResolvedValue(

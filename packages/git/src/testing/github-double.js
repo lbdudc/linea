@@ -819,7 +819,9 @@ export function createGithubDoubleApp(baseUrl = 'http://github.double') {
     const issue = {
       number: repo.nextPull++, title, body: body ?? '', state: 'open', author: 'dev', created_at: now, updated_at: now, closed_at: null,
       labels: labels ?? [], assignees: assignees ?? [], milestone: repo.milestones.find((m) => m.number === milestone) ?? null, comments: [],
+      events: [],
     };
+    recordLabels(issue, [], issue.labels);
     repo.issues.push(issue);
     res.status(201).json(issueJson(repo, issue));
   });
@@ -840,7 +842,10 @@ export function createGithubDoubleApp(baseUrl = 'http://github.double') {
     const body = req.body ?? {};
     if (body.title !== undefined) issue.title = body.title;
     if (body.body !== undefined) issue.body = body.body;
-    if (body.labels !== undefined) issue.labels = body.labels;
+    if (body.labels !== undefined) {
+      recordLabels(issue, issue.labels, body.labels);
+      issue.labels = body.labels;
+    }
     if (body.assignees !== undefined) issue.assignees = body.assignees;
     if (body.milestone !== undefined) issue.milestone = repo.milestones.find((m) => m.number === body.milestone) ?? null;
     if (body.state !== undefined && body.state !== issue.state) {
@@ -849,6 +854,17 @@ export function createGithubDoubleApp(baseUrl = 'http://github.double') {
     }
     issue.updated_at = new Date().toISOString();
     res.json(issueJson(repo, issue));
+  });
+  // what GitHub keeps of each label put on an issue or taken off it, among the issue's events
+  function recordLabels(issue, before, after) {
+    if (!issue.events) return;
+    const at = new Date().toISOString();
+    const event = (name, kind) => ({ id: Math.floor(Math.random() * 1e9), event: kind, label: { name, color: 'ededed' }, actor: userJson('dev'), created_at: at });
+    issue.events.push(...before.filter((l) => !after.includes(l)).map((l) => event(l, 'unlabeled')), ...after.filter((l) => !before.includes(l)).map((l) => event(l, 'labeled')));
+  }
+  router.get(`${R}/issues/:n/events`, (req, res) => {
+    const [, issue] = issueOr404(req, res);
+    if (issue) res.json(paged(req, issue.events ?? []));
   });
   router.get(`${R}/issues/:n/comments`, (req, res) => {
     const [, issue] = issueOr404(req, res);
@@ -872,12 +888,15 @@ export function createGithubDoubleApp(baseUrl = 'http://github.double') {
   router.post(`${R}/issues/:n/labels`, (req, res) => {
     const [repo, item] = labelled(req, res);
     if (!item) return;
-    item.labels = [...new Set([...(item.labels ?? []), ...(req.body?.labels ?? [])])];
+    const labels = [...new Set([...(item.labels ?? []), ...(req.body?.labels ?? [])])];
+    recordLabels(item, item.labels ?? [], labels);
+    item.labels = labels;
     res.json(labelsJson(repo, item));
   });
   router.put(`${R}/issues/:n/labels`, (req, res) => {
     const [repo, item] = labelled(req, res);
     if (!item) return;
+    recordLabels(item, item.labels ?? [], req.body?.labels ?? []);
     item.labels = req.body?.labels ?? [];
     res.json(labelsJson(repo, item));
   });

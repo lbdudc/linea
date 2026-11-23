@@ -1,4 +1,5 @@
 import { test, expect, beforeAll, beforeEach, afterEach, afterAll, describe } from 'vitest';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import request from 'supertest';
 import User from '../model/entities/user.js';
@@ -132,7 +133,8 @@ describe('audit log', () => {
 
 describe('the file', () => {
   test('the instance block is read, checked and exported', () => {
-    const { instance: block, warnings } = loadDeployConfig({ file: new URL('./support/instance.config.yml', import.meta.url).pathname });
+    // (fileURLToPath, not .pathname: on Windows that is `/C:/...`, which is no file)
+    const { instance: block, warnings } = loadDeployConfig({ file: fileURLToPath(new URL('./support/instance.config.yml', import.meta.url)) });
     expect(block).toEqual({ sessionHours: 4 });
     expect(warnings.join('\n')).toMatch(/instance.maxFailedSignIns/);
     expect(toConfigYaml({ plugins: [], instance: block })).toMatch(/instance:\n {2}sessionHours: 4/);

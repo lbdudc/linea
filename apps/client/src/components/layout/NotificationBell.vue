@@ -12,7 +12,7 @@ import { useT } from 'src/composables/useT'
 
 const vTooltip = Tooltip
 const POLL_MS = 45000
-const ICON = { assigned: 'pi-user-plus', mentioned: 'pi-at', state: 'pi-sync', comment: 'pi-comment', failed: 'pi-times-circle', conflicts: 'pi-exclamation-triangle', stuck: 'pi-clock' }
+const ICON = { assigned: 'pi-user-plus', mentioned: 'pi-at', state: 'pi-sync', comment: 'pi-comment', failed: 'pi-times-circle', conflicts: 'pi-exclamation-triangle', stuck: 'pi-clock', waiting: 'pi-hourglass' }
 
 const t = useT()
 const router = useRouter()

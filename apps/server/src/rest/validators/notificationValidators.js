@@ -7,6 +7,18 @@ export const notificationListValidator = [
   handleValidationErrors
 ];
 
+export const createNotificationValidator = [
+  body('subject').isIn(['issue', 'mr']).withMessage('error_messages.internal_error'),
+  body('target.kind').isIn(['line', 'product']).withMessage('error_messages.internal_error'),
+  body('target.id').isString().isLength({ min: 1, max: 40 }).withMessage('error_messages.internal_error'),
+  body('target.name').optional().isString().isLength({ max: 200 }).withMessage('error_messages.internal_error'),
+  body('number').isInt({ min: 1 }).withMessage('error_messages.internal_error'),
+  body('title').optional().isString().isLength({ max: 300 }).withMessage('error_messages.internal_error'),
+  body('actor').optional().isString().isLength({ max: 80 }).withMessage('error_messages.internal_error'),
+  body('excerpt').optional().isString().isLength({ max: 2000 }).withMessage('error_messages.internal_error'),
+  handleValidationErrors
+];
+
 export const markReadValidator = [
   body('ids').optional().isArray({ max: 200 }).withMessage('error_messages.internal_error')
     .bail().custom((ids) => ids.every((id) => typeof id === 'string' && id.length <= 40)).withMessage('error_messages.internal_error'),

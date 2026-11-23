@@ -12,6 +12,12 @@ export default class NotificationController {
     res.status(200).send(await this.service.list({ userId: req.userId, unread: unread === 'true', page: page ? Number(page) : 1 }));
   });
 
+  // Body: { subject, target: { kind, id, name? }, number, title?, actor?, excerpt? }: for the person themselves (see notifySelf)
+  create = asyncHandler(async (req, res) => {
+    const { subject, target, number, title, actor, excerpt } = req.body;
+    res.status(201).send(await this.service.notifySelf({ userId: req.userId, subject, target, number: Number(number), title, actor, excerpt }));
+  });
+
   markRead = asyncHandler(async (req, res) => {
     res.status(200).send(await this.service.markRead({ userId: req.userId, ids: req.body?.ids }));
   });

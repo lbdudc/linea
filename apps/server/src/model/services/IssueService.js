@@ -103,6 +103,12 @@ export default class IssueService {
     return git.listIssueComments({ token, id: projectId, number }).catch(this.#refuse);
   };
 
+  /** The labels put on the issue and taken off it, oldest first: who and when (what the host keeps of it). */
+  listLabelEvents = async ({ number, ...target }) => {
+    const { git, token, projectId } = await this.#access(target);
+    return git.listIssueLabelEvents({ token, id: projectId, number }).catch(this.#refuse);
+  };
+
   addComment = async ({ number, body, ...target }) => {
     const access = await this.#access(target);
     const { git, token, projectId } = access;

@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process'
 import { PassThrough } from 'node:stream'
 import { ACCESS } from '../access.js'
 import type {
-  AccessEntry, AuthConfig, Capabilities, ChangeRequest, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitProvider, Id, Issue, IssueChanges, IssueFilter, HostUser, Label,
+  AccessEntry, AuthConfig, Capabilities, ChangeRequest, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitProvider, Id, Issue, IssueChanges, IssueFilter, HostUser, Label, LabelEvent,
   Member, MergeOptions, MergeRequest, MergeRequestChanges, MergeRequestFilter, Milestone, Namespace, Page, Pipeline, PipelineJob, Release, ReleaseChanges, Repository, RepositoryFile, Template, TemplateKind, Thread, Tokens, PendingDeletion
 } from '../provider.js'
 import { closingIssueNumbers } from '../closing.js'
@@ -855,6 +855,7 @@ export class LocalProvider implements GitProvider {
         assignees: this.cleanList(assignees), labels: this.cleanList(labels), milestone: milestone?.trim() || null,
         createdAt: now, updatedAt: now, closedAt: null, comments: [], nextComment: 1
       }
+      issue.labelEvents = this.labelChanges([], issue.labels, user.username, now)
       repository.nextIssue = issue.number + 1
       repository.issues = [...(repository.issues ?? []), issue]
       return issue
@@ -874,7 +875,11 @@ export class LocalProvider implements GitProvider {
         issue.title = changes.title.trim()
       }
       if (changes.description !== undefined) issue.description = changes.description
-      if (changes.labels !== undefined) issue.labels = this.cleanList(changes.labels)
+      if (changes.labels !== undefined) {
+        const labels = this.cleanList(changes.labels)
+        issue.labelEvents = [...(issue.labelEvents ?? []), ...this.labelChanges(issue.labels, labels, user.username, new Date().toISOString())]
+        issue.labels = labels
+      }
       if (changes.assignees !== undefined) issue.assignees = this.cleanList(changes.assignees)
       if (changes.milestone !== undefined) issue.milestone = changes.milestone?.trim() || null
       if (changes.state !== undefined && changes.state !== issue.state) {
@@ -948,6 +953,19 @@ export class LocalProvider implements GitProvider {
 
   private toComment(record: CommentRecord): Comment {
     return { id: record.id, author: record.author, body: record.body, createdAt: record.createdAt, updatedAt: record.updatedAt }
+  }
+
+  /** What changed from one set of labels to another, as events. */
+  private labelChanges(before: string[], after: string[], author: string, at: string) {
+    return [
+      ...before.filter((label) => !after.includes(label)).map((label) => ({ label, action: 'removed' as const, author, createdAt: at })),
+      ...after.filter((label) => !before.includes(label)).map((label) => ({ label, action: 'added' as const, author, createdAt: at })),
+    ]
+  }
+
+  async listIssueLabelEvents({ token, id, number }: { token: string, id: Id, number: number }): Promise<LabelEvent[]> {
+    const { record } = await this.open(token, id)
+    return (this.issueOf(record, number).labelEvents ?? []).map((event) => ({ ...event }))
   }
 
   async listIssueComments({ token, id, number }: { token: string, id: Id, number: number }): Promise<Comment[]> {

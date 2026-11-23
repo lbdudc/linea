@@ -7,7 +7,7 @@ import { Container } from 'typedi';
 import ReleaseController from '../controllers/ReleaseController.js';
 import { changelogRangeValidator } from '../validators/changelogValidators.js';
 import ChangelogController from '../controllers/ChangelogController.js';
-import { restoreValidator, deleteLineValidator, createLineValidator, memberParamValidator, memberValidator, hostQueryValidator, fromUvlValidator, planBranchCommitValidator, planBranchMergeValidator, saveFeatureModelValidator, tryDerivationValidator, trialModelsValidator, checkTrialModelsValidator } from '../validators/lineValidators.js';
+import { restoreValidator, deleteLineValidator, createLineValidator, memberParamValidator, memberValidator, hostQueryValidator, fromUvlValidator, saveFeatureModelValidator, tryDerivationValidator, trialModelsValidator, checkTrialModelsValidator } from '../validators/lineValidators.js';
 import LineController from '../controllers/LineController.js';
 import AccessController from '../controllers/AccessController.js';
 import { accessValidator, accessParamValidator } from '../validators/accessValidators.js';
@@ -72,13 +72,8 @@ lineRouter.get('/:id/model', requireAuth, lineController.getFeatureModel);
 lineRouter.post('/:id/model/preview', requireAuth, lineController.previewFeatureModel);
 lineRouter.post('/:id/model/from-uvl', requireAuth, fromUvlValidator, lineController.featureModelFromUvl);
 lineRouter.put('/:id/model', requireAuth, saveFeatureModelValidator, lineController.saveFeatureModel);
-// FM editor → commit content to a plan working branch and return the branch name.
 lineRouter.post('/:id/derive-trial', requireAuth, tryDerivationValidator, lineController.tryDerivation);
 lineRouter.get('/:id/trial-models', requireAuth, trialModelsValidator, lineController.getTrialModels);
 lineRouter.post('/:id/trial-models/check', requireAuth, checkTrialModelsValidator, lineController.checkTrialModels);
-lineRouter.post('/:id/plan-branch', requireAuth, lineController.commitFmToPlanBranch);
-// files of any kind (not only the feature model), and the merge of the branch into main
-lineRouter.post('/:id/plan-branch/commits', requireAuth, planBranchCommitValidator, lineController.commitToPlanBranch);
-lineRouter.post('/:id/plan-branch/merge', requireAuth, planBranchMergeValidator, lineController.mergePlanBranch);
 
 export default lineRouter;

@@ -31,14 +31,14 @@ describe('what a plugin adds to the interface', () => {
     const shell = () => null
     const page = () => null
 
-    ui.addPages({ path: '/agents', shell, children: [{ path: '', name: 'flujo', component: page }, { path: 'salud', name: 'salud', component: page }] })
+    ui.addPages({ path: '/agents', shell, children: [{ path: '', name: 'agentes', component: page }, { path: ':agent', name: 'agente', component: page }] })
 
     expect(added).toHaveLength(1)
     expect(added[0].path).toBe('/agents')
     expect(added[0].meta).toMatchObject({ requiresAuth: true, plugin: 'p' })
     expect(added[0].children).toHaveLength(1)
     expect(added[0].children[0]).toMatchObject({ path: '', component: shell })
-    expect(added[0].children[0].children.map((c) => c.name)).toEqual(['flujo', 'salud'])
+    expect(added[0].children[0].children.map((c) => c.name)).toEqual(['agentes', 'agente'])
   })
 
   it('its words join the app\'s; with keepExisting what the app says stays', () => {
@@ -87,5 +87,20 @@ describe('names and words that outlive the registration', () => {
     expect(i18n.global.t('plugin.mr')).toBe('Open the change request on LINEA')
     setProfileWords({ i18n, kind: 'gitlab' })
     expect(i18n.global.t('plugin.mr')).toBe('Open the merge request on GitLab')
+  })
+})
+
+describe('a count beside a plugin\'s nav item', () => {
+  it('shows what the plugin says, hides at zero, and only on its own items', () => {
+    const { ui } = make()
+    ui.addNav({ id: 'agents', icon: 'pi-x', label: 'Agents', to: '/agents' })
+    ui.setNavBadge('agents', 3, { title: { en: 'waiting for you' } })
+    expect(contributions.nav[0].badge).toEqual({ count: 3, title: { en: 'waiting for you' } })
+    ui.setNavBadge('agents', 0)
+    expect(contributions.nav[0].badge).toBeNull()
+
+    const other = createUi({ plugin: 'q', router: { addRoute: () => {}, hasRoute: () => false }, i18n: make().i18n, layout: () => null, api: {} })
+    other.setNavBadge('agents', 5)
+    expect(contributions.nav[0].badge).toBeNull()
   })
 })

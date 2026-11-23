@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { Readable } from 'node:stream'
 import { GitLabAuthError, GitLabSession } from 'gitlab-commando'
 import type {
-  AccessEntry, AuthConfig, Capabilities, ChangeRequest, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitProvider, Id, Issue, IssueChanges, IssueFilter, HostUser, Label, Member,
+  AccessEntry, AuthConfig, Capabilities, ChangeRequest, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitProvider, Id, Issue, IssueChanges, IssueFilter, HostUser, Label, LabelEvent, Member,
   MergeOptions, MergeRequest, MergeRequestChanges, MergeRequestFilter, Milestone, Namespace, Page, Pipeline, PipelineJob, Release, ReleaseChanges, Repository, RepositoryFile, Runner, Template, TemplateKind, Thread, Tokens, PendingDeletion
 } from '../provider.js'
 import { ACCESS } from '../access.js'
@@ -574,6 +574,15 @@ export class GitLabProvider implements GitProvider {
   async listIssueComments({ token, id, number }: { token: string, id: Id, number: number }): Promise<Comment[]> {
     const notes = await this.client.listPaged(token, `projects/${idOf(id)}/issues/${number}/notes?sort=asc&order_by=created_at`)
     return notes.filter((note) => !note.system).map(toComment)
+  }
+
+  async listIssueLabelEvents({ token, id, number }: { token: string, id: Id, number: number }): Promise<LabelEvent[]> {
+    const events = await this.client.listPaged(token, `projects/${idOf(id)}/issues/${number}/resource_label_events`)
+    return events
+      // (a label deleted since has no name left)
+      .filter((event) => event.label?.name)
+      .map((event): LabelEvent => ({ label: event.label.name, action: event.action === 'remove' ? 'removed' : 'added', author: event.user?.username, createdAt: event.created_at }))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
   }
 
   async addIssueComment({ token, id, number, body }: { token: string, id: Id, number: number, body: string }): Promise<Comment> {

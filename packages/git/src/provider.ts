@@ -134,6 +134,14 @@ export interface Comment {
   updatedAt: string
 }
 
+/** A label put on an issue or taken off it: by whom and when. */
+export interface LabelEvent {
+  label: string
+  action: 'added' | 'removed'
+  author: string | undefined
+  createdAt: string
+}
+
 /** A release of a tag: what the host shows as the release notes of a version. `tag` is its key (one release per tag). */
 export interface Release {
   tag: string
@@ -535,6 +543,8 @@ export interface GitProvider {
   updateIssue(args: { token: string, id: Id, number: number, changes: IssueChanges }): Promise<Issue>
   /** The messages the people wrote, oldest first (what the host writes by itself, "changed the label", is left out). */
   listIssueComments(args: { token: string, id: Id, number: number }): Promise<Comment[]>
+  /** The labels put on an issue and taken off it, oldest first (those it was opened with too): who and when. */
+  listIssueLabelEvents(args: { token: string, id: Id, number: number }): Promise<LabelEvent[]>
   addIssueComment(args: { token: string, id: Id, number: number, body: string }): Promise<Comment>
   listLabels(args: { token: string, id: Id }): Promise<Label[]>
   listMilestones(args: { token: string, id: Id }): Promise<Milestone[]>
@@ -609,6 +619,6 @@ export const GIT_PROVIDER_METHODS = [
   'createChangeRequest', 'createOrRenameChangeRequest', 'listChangeRequests', 'listChangeRequestPipelines', 'mergeChangeRequest',
   'getLatestPipeline', 'listPipelines', 'getPipelineJobs', 'retryPipeline', 'cancelPipeline', 'cancelJob', 'enablePipelines', 'disablePipelines', 'pipelinesEnabled', 'getCiRunners', 'setInstanceRunners', 'getJobTrace', 'ensureWebhook', 'verifyWebhook', 'parsePushEvent',
   'listMergeRequests', 'getMergeRequest', 'createMergeRequest', 'updateMergeRequest', 'getMergeRequestDiff', 'listMergeRequestThreads', 'addMergeRequestComment', 'setThreadResolved', 'mergeMergeRequest', 'approveMergeRequest',
-  'capabilities', 'listIssues', 'getIssue', 'createIssue', 'updateIssue', 'listIssueComments', 'addIssueComment', 'listLabels', 'listMilestones', 'listTemplates', 'saveTemplate', 'deleteTemplate',
+  'capabilities', 'listIssues', 'getIssue', 'createIssue', 'updateIssue', 'listIssueComments', 'listIssueLabelEvents', 'addIssueComment', 'listLabels', 'listMilestones', 'listTemplates', 'saveTemplate', 'deleteTemplate',
   'rollback', 'isAuthError', 'isAlreadyExistsError'
 ] as const

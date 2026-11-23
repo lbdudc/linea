@@ -91,6 +91,13 @@ test('issues of a line: create, list with filters, edit, close, comment', async 
   const meta = await call('get', `${base}/meta`);
   expect(meta.body).toMatchObject({ host: 'local', capabilities: { issues: { labels: true, milestones: true, assignees: true } } });
   expect(meta.body.labels.map((label) => label.name)).toEqual(['bug', 'feature']);
+
+  // who put each label on and took it off
+  await call('patch', `${base}/2`, { labels: ['feature', 'agent::evolve'] });
+  await call('patch', `${base}/2`, { labels: ['agent::evolve'] });
+  const events = await call('get', `${base}/2/label-events`);
+  expect(events.status).toBe(200);
+  expect(events.body.map((e) => `${e.author} ${e.action} ${e.label}`)).toEqual(['ana added feature', 'ana added agent::evolve', 'ana removed feature']);
 });
 
 test('issues of a product live in the repository of the product', async () => {
