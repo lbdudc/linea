@@ -21,6 +21,17 @@
     "server": { "type": "string", "description": "Path of the in-process entry, inside the plugin's folder" },
     "client": { "type": "string", "description": "Path of the web entry (the build reads client/index.js)" },
     "serviceKey": { "type": "string", "description": "Name of a setting of type secret" },
+    "service": {
+      "type": "object",
+      "description": "The Docker Compose file of the plugin's own service, which LINEA starts when the plugin is enabled and stops when it is disabled",
+      "properties": {
+        "compose": { "type": "string", "description": "A compose file inside the plugin's folder" },
+        "project": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$", "description": "Compose project name (default linea-<id>)" },
+        "env": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Extra variables for the compose process; text may use ${NAME} and ${NAME:-default}" }
+      },
+      "required": ["compose"],
+      "additionalProperties": false
+    },
     "remote": {
       "type": "object",
       "properties": {

@@ -10,6 +10,7 @@ This is the contract between LINEA and a plugin. The code that enforces it is `s
 - [6. The server side: `register(ctx)`](#6-the-server-side-registerctx)
 - [7. The web side: `register(ui)`](#7-the-web-side-registerui)
 - [8. Remote plugins: the service contract](#8-remote-plugins-the-service-contract)
+  - [8.1 A service that runs in Docker](#81-a-service-that-runs-in-docker)
 - [9. Connectivity and health](#9-connectivity-and-health)
 - [10. Rules the tests enforce](#10-rules-the-tests-enforce)
 - [11. Versioning](#11-versioning)
@@ -60,6 +61,7 @@ The schema is [`plugin.schema.json`](plugin.schema.json), for editors: it is str
 | `client` | no | Path to the web entry. The build uses `client/index.js`: keep that name |
 | `settings` | no | The plugin's settings, [§4](#4-settings) |
 | `serviceKey` | no | Name of a `secret` setting that is the plugin's key for calling LINEA ([§8](#8-remote-plugins-the-service-contract)) |
+| `service` | no | `{ compose, project?, env? }`: the Docker Compose file of the plugin's own service, which LINEA starts and stops ([§8.1](#81-a-service-that-runs-in-docker)) |
 | `remote` | no | `{ baseUrl, health, events, web }` for a remote service. Strings may contain `${NAME}` or `${NAME:-default}`, replaced from the server's environment (only an *unset* variable takes the default: an empty one gives an empty text) |
 
 `remote.health` is a path resolved against `remote.baseUrl` (and needs it: a manifest with `health` and no `baseUrl` is an error). `remote.events` is a full URL. `remote.web` is a page of the service that the Plugins view links to ("Open"). If the plugin has a setting called `url`, its value replaces `remote.baseUrl` and the same start of `remote.events` and `remote.web` (only an address that *begins with* the expanded `baseUrl` is swapped, so write them all from the same variable, as `docs/linea/plugin-examples/echo-plugin` does; the address of the `url` setting loses a trailing `/`, one from `${…}` does not, so do not end `baseUrl` with one). That is how an administrator says where the service is. `health` and `web` paths are resolved with `new URL(path, baseUrl)`: a leading `/` drops any path in `baseUrl`.
@@ -154,6 +156,33 @@ A remote plugin is an HTTP service that LINEA knows by `remote` in the manifest.
 
 Send `Authorization: Service <key>` and `X-Act-As: <username>` to LINEA's API (SDK: `serviceClient`). The key is the value of the plugin's `serviceKey` setting (or an entry of the server's `LINEA_SERVICE_KEYS=id[#scope+scope]:secret,…`). The service acts with what that person can do; the person must have logged in to LINEA once. Routes for administrators need a key with the `admin` scope, which a `serviceKey` never has. Keys are compared in constant time and every use is logged (`[service] <id> as <user>`). Keep the key on the server side. The key the administrator types in the Plugins view and the one the service reads (e.g. `ECHO_SERVICE_KEY`) are two places that must hold the same value. Only **enabled** plugins' keys are accepted: a disabled plugin's service gets `401`. Answers: `401` for a wrong key or a missing `X-Act-As`; `403` for a user that never logged in to LINEA or is disabled, or an admin route without the `admin` scope.
 
+### 8.1 A service that runs in Docker
+
+A plugin that needs a container (flamapy for analytics, the agents' application) says which compose file runs it, and LINEA does the rest. LINEA's own repository carries no plugin compose file and no plugin variable: everything is in the plugin's folder.
+
+```json
+"service": {
+  "compose": "service/deploy/docker-compose.yml",
+  "project": "linea-agents",
+  "env": { "LINEA_API_URL": "${LINEA_INTERNAL_URL}", "BOT_USER": "${BOT_USER:-}" }
+}
+```
+
+| Key | |
+|---|---|
+| `compose` | Required. A compose file **inside the plugin's folder** (no `..`, not absolute). |
+| `project` | Compose project name (default `linea-<id>`). It is what keeps the containers apart from LINEA's own and lets LINEA find them again. |
+| `env` | Extra variables for the compose process, `NAME: text` where the text may use `${NAME}` / `${NAME:-default}`. |
+
+What LINEA does:
+
+- **Enable** the plugin (or **Start service** in the Plugins view) runs `docker compose -p <project> -f <compose> up -d --build`; **disable** (or **Stop service**) runs `stop`, so containers and data stay for the next start. A start that fails does not undo the enable: the plugin stays on and the card says why.
+- The compose process gets the server's environment, then every setting of the plugin under its `env` name (so a `serviceKey` setting with `"env": "AGENTS_SERVICE_KEY"` reaches the compose file), then `service.env`. `LINEA_INTERNAL_URL` is where a container reaches LINEA (`http://host.docker.internal:<port>`; set it to change it).
+- It runs where **the server** runs, so it needs the Docker CLI and a daemon the server can reach. In LINEA's own Docker image the plugin folders do not hold their `service/`, so there the services are started by hand: each plugin with a service also ships a `linea.compose.yml` that LINEA's compose file is run with (`docker compose -f docker-compose.yml -f ../../linea-plugins/<plugin>/linea.compose.yml up -d`; `LINEA_PLUGINS_SRC` says where the plugins are checked out). For the dev server, a plugin may ship a `dev.env` for `LINEA_DEV_ENV=<file> npm run dev:up`.
+- Compose files should not pin `container_name` (two checkouts would collide) and should give every service a healthcheck: LINEA reads it to tell *starting* from *running*.
+
+The state LINEA reports (`serviceState` in `GET /api/plugins`): `running` (every container up), `starting` (one is being created or its healthcheck is still `starting`), `degraded` (up, but a container crashed, was killed or is unhealthy), `failed` (nothing up and one crashed), `stopped`, `unavailable` (no Docker CLI or daemon, or a broken file). A container that exited with code 0 (the one that initiates a replica set) is not a failure, and 137 or 143 is what `docker stop` leaves: a stop, not a crash. `GET /api/plugins/:id/service/logs?tail=200&service=<name>` gives the containers and the last lines of their logs (10 to 2000; the values of the plugin's `secret` settings and terminal colour codes are removed). All of this is admin only.
+
 ## 9. Connectivity and health
 
 - `GET /api/plugins` (admin) lists every plugin with `health`: `"up"`, `"down"` or `null` (no service to ask), and `healthDetail`: `{ status, latencyMs, httpStatus, error, checkedAt }`.
@@ -172,4 +201,4 @@ Send `Authorization: Service <key>` and `X-Act-As: <username>` to LINEA's API (S
 
 ## 12. Using plugins from the web UI and from linea-cli
 
-Everything above is reached through the REST API, so any client can use it; the web UI is one. To manage plugins: `GET /api/plugins`, `POST /api/plugins/:id/install|enable|disable`, `DELETE /api/plugins/:id`, `GET|PUT /api/plugins/:id/settings`, `GET /api/plugins/:id/health`, `GET /api/plugins/config.yml` (admin; see [api-reference](api-reference.md#plugins-apiplugins)). To use what a plugin serves: `/api/plugins/<id>/…` with the same bearer token. linea-cli lives in its own repository; it needs no plugin-specific code, only these calls. Proposed commands: `linea plugins list|status|enable|disable`, `linea plugins call <id> <path>`.
+Everything above is reached through the REST API, so any client can use it; the web UI is one. To manage plugins: `GET /api/plugins`, `POST /api/plugins/:id/install|enable|disable`, `DELETE /api/plugins/:id`, `GET|PUT /api/plugins/:id/settings`, `GET /api/plugins/:id/health`, `POST /api/plugins/:id/service/start|stop`, `GET /api/plugins/:id/service/logs`, `GET /api/plugins/config.yml` (admin; see [api-reference](api-reference.md#plugins-apiplugins)). To use what a plugin serves: `/api/plugins/<id>/…` with the same bearer token. linea-cli lives in its own repository; it needs no plugin-specific code, only these calls. Proposed commands: `linea plugins list|status|enable|disable`, `linea plugins call <id> <path>`.

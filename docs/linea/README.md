@@ -46,5 +46,5 @@ To sign in with GitLab or GitHub instead of the built-in `local` host, see `depl
 | LLM | Anthropic Claude via `@anthropic-ai/sdk` (model `claude-sonnet-4-6`, 8192 max tokens) |
 | GitLab | `gitlab-commando` library for all GitLab REST calls |
 | SPL engine | `spl-js-engine` for `completeFeatureSelection` validation |
-| FM analysis | `flamapy-server` — dedicated Python 3.11 / FastAPI service; called by the Node server over HTTP (`FLAMAPY_API_URL`) |
+| FM analysis | `flamapy-server` — dedicated Python 3.11 / FastAPI service; called by the Node server over HTTP (the analytics plugin's `url` setting); LINEA starts its container from the Plugins view |
 | Client | Vue 3 + Quasar, `<script setup>`, Composition API |

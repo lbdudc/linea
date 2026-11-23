@@ -96,13 +96,16 @@ The base's own API for plugins. What a plugin serves is under `/api/plugins/<id>
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/` | Admin | The catalog with each plugin's state: `installed`, `enabled`, `compatible` (its `requires.linea` fits), `health` (`up`/`down`, `null` for a plugin with no service), `healthDetail` (`{ status, latencyMs, httpStatus, error, checkedAt }`), `loadError` |
+| `GET` | `/` | Admin | The catalog with each plugin's state: `installed`, `enabled`, `compatible` (its `requires.linea` fits), `health` (`up`/`down`, `null` for a plugin with no service), `healthDetail` (`{ status, latencyMs, httpStatus, error, checkedAt }`), `loadError`, `serviceState` (for a plugin that runs a Docker service: `{ state: running\|starting\|degraded\|failed\|stopped\|unavailable, containers, total, details, error }`) |
 | `GET` | `/enabled` | No | What the web client loads: `[{ id, version, client, web, settings }]` for the enabled plugins (`settings`: only the `public` ones) |
 | `POST` | `/:id/install` | Admin | Installs (loads its server side); it starts off. Installing what is installed changes nothing |
 | `POST` | `/:id/enable` | Admin | Switches it on, without a restart |
 | `POST` | `/:id/disable` | Admin | Switches it off |
 | `DELETE` | `/:id` | Admin | Uninstalls (and disables) |
 | `GET` | `/:id/health` | Admin | Checks the plugin's service now: `{ id, inProcess, enabled, status: up\|down\|n/a, latencyMs, httpStatus, error, checkedAt }` |
+| `POST` | `/:id/service/start` | Admin | Starts the plugin's Docker service (`docker compose up -d --build` of the compose file its manifest names) |
+| `POST` | `/:id/service/stop` | Admin | Stops it (`docker compose stop`: containers and data stay) |
+| `GET` | `/:id/service/logs` | Admin | `?tail=200&service=<name>`: `{ state, containers, logs, error, tail }`; `tail` 10 to 2000, `service` one container (all by default). Secrets and terminal colours removed |
 | `GET` `PUT` | `/:id/settings` | Admin | The settings schema, values (secrets masked) and where each comes from; `PUT` saves a patch |
 | `GET` | `/config.yml` | Admin | The installed plugins and their settings as a `linea.config.yml` |
 
