@@ -1,3 +1,4 @@
+import { modeOf, online } from './mode.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Session } from '../commands/types.js';
@@ -28,6 +29,8 @@ export interface Checkout {
 
 export interface GuideState {
   signedIn: boolean;
+  /** server or offline */
+  mode: 'server' | 'offline';
   user?: string;
   /** how many SPLs this machine has in the workspace */
   spls: number;
@@ -89,7 +92,8 @@ export function guideState(
     /* no workspace yet */
   }
   return {
-    signedIn: session.authed,
+    signedIn: online(session),
+    mode: modeOf(session),
     ...(session.user?.username ? { user: session.user.username } : {}),
     spls,
     ...(folder.line ? { line: checkouts ? checkouts.line ?? { name: folder.line.name, linked: false, changes: 0, ahead: 0, behind: 0 } : checkoutOf(folder.line.name, folder.line.dir) } : {}),
@@ -120,7 +124,9 @@ export function tipsFor(state: GuideState): Tip[] {
       tips.push(
         state.signedIn
           ? { command: 'push', why: `put ${state.line.name} on LINEA (it is only on this machine)` }
-          : { command: 'login', why: `sign in, and push will put ${state.line.name} on LINEA` },
+          : state.mode === 'offline'
+            ? { command: 'mode server', why: `connect to LINEA, and push will put ${state.line.name} there` }
+            : { command: 'login', why: `sign in, and push will put ${state.line.name} on LINEA` },
       );
     }
     if (here.changes > 0 || here.ahead > 0) tips.push({ command: 'push -m "…"', why: `send ${plural(here.changes || here.ahead, here.changes ? 'change' : 'commit')} to LINEA` });
@@ -141,8 +147,13 @@ export function tipsFor(state: GuideState): Tip[] {
   }
 
   if (!state.signedIn) {
-    tips.push({ command: 'login', why: 'sign in: your SPLs on LINEA, and git access' });
-    tips.push({ command: 'spl new <name> --local', why: 'start an SPL on this machine' });
+    if (state.mode === 'offline') {
+      tips.push({ command: 'spl new <name>', why: 'start an SPL on this machine' });
+      tips.push({ command: 'mode server', why: 'connect to LINEA: your SPLs there, and git access' });
+    } else {
+      tips.push({ command: 'login', why: 'sign in to LINEA: your SPLs there, and git access' });
+      tips.push({ command: 'mode offline', why: 'or work on this machine only' });
+    }
     if (state.spls) tips.push({ command: 'status', why: whereStand(state.spls) });
     tips.push({ command: 'doctor', why: 'check that git and an editor are in place' });
     return tips.slice(0, 5);

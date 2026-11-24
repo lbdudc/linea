@@ -2,12 +2,12 @@ import path from 'node:path';
 import type { Session } from '../commands/types.js';
 import { configureClient } from './client.js';
 import { config } from './config.js';
-import { loadState, serverOf } from './credentials.js';
+import { loadState, resolveMode, serverOf } from './credentials.js';
 import { findContext, type FolderContext } from './context.js';
 import { resolveWorkdir } from './workdir.js';
 
 /**
- * The session a command runs in: what was stored (server, user, editor) plus where you are. There is no active SPL and no mode:
+ * The session a command runs in: what was stored (server, user, editor) plus where you are. There is no active SPL; the mode (server or offline) is the one thing that is kept:
  * standing in an SPL makes commands about it, and its parent folder is the workspace, the way standing in a repository makes it the
  * one `git` acts on.
  */
@@ -26,6 +26,7 @@ export function buildSession(opts: { cwd?: string } = {}): { session: Session; f
     session: {
       baseUrl,
       authed: Boolean(token),
+      mode: resolveMode(stored),
       user: stored.user,
       workdir,
       cwd,

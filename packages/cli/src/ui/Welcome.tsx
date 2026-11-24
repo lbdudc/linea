@@ -1,3 +1,4 @@
+import { contextLine } from '../core/mode.js';
 import { For, Show } from 'solid-js';
 import { TextAttributes } from '@opentui/core';
 import type { Session } from '../commands/types.js';
@@ -51,10 +52,7 @@ export function Welcome(props: { version: string; session: Session; state: Guide
         <text fg={theme.muted}>{`  ${head().detail}`}</text>
       </box>
       <text fg={theme.faint}>
-        {props.state.signedIn
-          ? `signed in${props.state.user ? ` as ${props.state.user}` : ''} · ${host(props.session.baseUrl)}`
-          : 'not signed in · working on this machine'}
-        {` · ${displayPath(props.state.folder)}`}
+        {`${contextLine(props.session)} · ${displayPath(props.state.folder)}`}
       </text>
       <text> </text>
       <text fg={theme.muted}>Try:</text>

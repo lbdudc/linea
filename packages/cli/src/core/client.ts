@@ -14,6 +14,14 @@ export function onTokenRefreshed(fn: (token: string) => void): void {
   persistToken = fn;
 }
 
+/** The server did not take the sign-in and it could not be renewed: a new `login` is needed. */
+export class SessionExpiredError extends Error {
+  constructor() {
+    super('Your session on the LINEA server expired.');
+    this.name = 'SessionExpiredError';
+  }
+}
+
 export class SplalmError extends Error {
   public readonly status: number;
   public readonly code: string;
@@ -39,6 +47,18 @@ const CODE_MESSAGES: Record<string, string> = {
   'error_messages.basicData_name_validation': 'The product name is missing or invalid.',
   'error_messages.basicData_version_format': 'The product version must be in x.y.z form.',
   'error_messages.line_platform_not_found': 'The SPL has no platform code in GitLab yet.',
+  'error_messages.no_linea_account':
+    'That account has never signed in to this LINEA: sign in once with the browser (login <remote>) or a code (login <remote> --device) first; after that a token works.',
+  'error_messages.device_flow_unavailable': 'This LINEA has no sign-in with a code for that remote: use the browser (login <remote>) or a token (login <remote> --token <token or file>).',
+  'error_messages.device_flow_disabled': "The OAuth application of that remote does not allow the sign-in with a code (an administrator has to enable the device flow in it).",
+  'error_messages.device_code_expired': 'The code expired before it was approved: run the command again.',
+  'error_messages.device_access_denied': 'The sign-in was refused on the other screen.',
+  'error_messages.git_host_not_linked': 'You have no account on that remote yet: remote link <remote>.',
+  'error_messages.git_host_is_own': 'That is the account you sign in with here: it cannot be unlinked.',
+  'error_messages.git_host_account_taken': 'That account already belongs to someone else on this LINEA.',
+  'error_messages.git_host_validation': 'This LINEA does not have that remote on: remote shows the ones it has.',
+  'error_messages.incorrect_credentials': 'Those credentials were not accepted.',
+  'error_messages.too_many_attempts': 'Too many attempts: wait a little and try again.',
   'error_messages.code_validation':
     'GitLab did not send a valid authorization code — try /login again.',
   'error_messages.redirect_uri_validation':
@@ -46,6 +66,7 @@ const CODE_MESSAGES: Record<string, string> = {
 };
 
 export function handleApiError(error: unknown): string {
+  if (error instanceof SessionExpiredError) return '✗ Your session on the LINEA server expired. Run: login  (or add --offline to work on this machine).';
   if (error instanceof SplalmError) {
     const known = CODE_MESSAGES[error.code];
     if (known) return known;
@@ -54,7 +75,7 @@ export function handleApiError(error: unknown): string {
       case 400:
         return `Bad request — ${detail}. Check your input.`;
       case 401:
-        return 'Unauthorized — your session has expired. Run /login to sign in again.';
+        return 'Unauthorized — your session has expired. Run: login  (or add --offline to work on this machine).';
       case 403:
         return 'Permission denied — you need a higher GitLab access level (maintainer=40, owner=50) for this.';
       case 404:
@@ -73,7 +94,7 @@ export function handleApiError(error: unknown): string {
       cause && typeof cause === 'object' && 'code' in cause ? String((cause as { code: unknown }).code) : '';
     const blob = `${error.message} ${causeCode}`;
     if (error.message === 'fetch failed' || blob.includes('ECONNREFUSED') || blob.includes('ENOTFOUND')) {
-      return `Cannot reach SPLALM at ${baseUrl}. Check the server is running and LINEA_BASE_URL is correct.`;
+      return `Cannot reach LINEA at ${baseUrl}. Check the address (server <url>). To work on this machine meanwhile: mode offline, or --offline for one command.`;
     }
     if (blob.includes('ETIMEDOUT') || blob.includes('timeout')) {
       return 'Request timed out. Generation can take several minutes.';
@@ -100,9 +121,10 @@ async function apiRequest(
 
   const res = await fetch(`${baseUrl}${urlPath}`, init);
 
-  if (res.status === 401 && !isRetry) {
+  if (res.status === 401 && !isRetry && currentJwt) {
     const refreshed = await doRefresh();
     if (refreshed) return apiRequest(method, urlPath, body, true);
+    if (urlPath !== '/api/users/loginFromServiceToken') throw new SessionExpiredError();
   }
 
   if (!res.ok) {
@@ -155,4 +177,5 @@ export const splalm = {
   get: (p: string) => apiRequest('GET', p),
   post: (p: string, b?: unknown) => apiRequest('POST', p, b),
   put: (p: string, b?: unknown) => apiRequest('PUT', p, b),
+  del: (p: string) => apiRequest('DELETE', p),
 };

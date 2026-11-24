@@ -1,3 +1,4 @@
+import { modeOf, online } from './core/mode.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from 'solid-js';
@@ -87,7 +88,7 @@ export function App(props: { version: string }) {
   // what LINEA and the git host have, once signed in: asked for in the background (a login makes it ask again), shown as `↓`
   const [remoteTick, setRemoteTick] = createSignal(0);
   const loadRemote = (force = false) => {
-    if (!session().authed) {
+    if (!online(session())) {
       forgetRemoteSplNames();
       return setRemoteTick((t) => t + 1);
     }
@@ -290,7 +291,7 @@ export function App(props: { version: string }) {
   const actions = createMemo((): SidebarAction[] => {
     const g = guide();
     const list: SidebarAction[] = [];
-    list.push(session().authed ? { label: 'refresh from LINEA', onClick: () => loadRemote(true) } : { label: 'sign in', onClick: () => run('login') });
+    list.push(online(session()) ? { label: 'refresh from LINEA', onClick: () => loadRemote(true) } : { label: modeOf(session()) === 'offline' ? 'connect to LINEA' : 'sign in', onClick: () => run(modeOf(session()) === 'offline' ? 'mode server' : 'login') });
     list.push({ label: 'new SPL…', onClick: () => fill('spl new ') });
     list.push({ label: 'open in browser', onClick: () => run(`browse${picked() ? ` ${picked()!.remote ?? picked()!.name}` : ''}`) });
     list.push({ label: 'show in folder', onClick: () => run(`reveal${picked()?.dir ? ` ${picked()!.name}` : ''}`) });
@@ -320,10 +321,10 @@ export function App(props: { version: string }) {
     const tokens = trimmed === '?' ? ['keys'] : tokenize(trimmed.startsWith('/') ? trimmed.slice(1) : trimmed);
 
     setDoing(tokens.slice(0, 2).join(' ') || 'working');
-    const wasAuthed = session().authed;
+    const wasOnline = online(session());
     setBusy(true);
     const controller = new AbortController();
-    const resolved = resolveCommand(tokens.filter((t) => t !== '--json' && t !== '--local'));
+    const resolved = resolveCommand(tokens.filter((t) => t !== '--json' && t !== '--local' && t !== '--offline'));
     const canGiveUp = !('error' in resolved) && Boolean(resolved.cmd.cancellable);
     cancelling = canGiveUp ? () => controller.abort() : undefined;
     setCancellable(canGiveUp);
@@ -339,7 +340,7 @@ export function App(props: { version: string }) {
       setStatus(null);
       refreshGuide();
       // a login (or logout) changes who is asking; otherwise this only renews what is older than a few seconds
-      loadRemote(session().authed !== wasAuthed || tokens[0] === 'login');
+      loadRemote(online(session()) !== wasOnline || ['login', 'logout', 'mode', 'server', 'remote', 'profile'].includes(tokens[0] ?? ''));
     }
   }
 

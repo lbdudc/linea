@@ -1,6 +1,8 @@
 import type { Command } from './types.js';
 import { helpCommands } from './help.js';
 import { authCommands } from './auth.js';
+import { remoteCommands } from './remote.js';
+import { modeCommands } from './mode.js';
 import { configCommands } from './config.js';
 import { fmCommands } from './fm.js';
 import { splCommands } from './spl.js';
@@ -20,6 +22,8 @@ import { setLookup } from './lookup.js';
 const commands: Command[] = [
   ...helpCommands,
   ...authCommands,
+  ...remoteCommands,
+  ...modeCommands,
   ...configCommands,
   ...setupCommands,
   ...bridgeCommands,

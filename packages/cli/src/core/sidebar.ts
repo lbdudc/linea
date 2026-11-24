@@ -1,3 +1,4 @@
+import { online } from './mode.js';
 import type { Session } from '../commands/types.js';
 import { findContext, type FolderContext } from './context.js';
 import { listLocalLines, listLocalPackages, listLocalProducts, localProductDir } from './workspace.js';
@@ -62,7 +63,7 @@ function merge<T extends SidebarEntry>(here: T[], remote: readonly RemoteItem[] 
 
 export function sidebarOf(session: Session, folder: FolderContext, remote?: RemoteNames): SidebarModel {
   const root = folder.workspace ?? session.workdir;
-  const signedIn = Boolean(session.authed);
+  const signedIn = online(session);
   const local = root ? listLocalLines(root) : [];
   const here = local.map((l): SidebarEntry & { products: SidebarEntry[] } => ({
     name: l.name,

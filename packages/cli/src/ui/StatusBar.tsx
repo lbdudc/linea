@@ -4,6 +4,7 @@ import type { Session } from '../commands/types.js';
 import type { GuideState } from '../core/guide.js';
 import { displayPath } from '../core/workdir.js';
 import { theme } from './theme.js';
+import { contextLine, modeOf } from '../core/mode.js';
 
 /**
  * The line under the prompt. On the left what you can press, on the right where you are: the SPL or product, its branch, what is
@@ -13,6 +14,8 @@ export function StatusBar(props: { session: Session; state: GuideState }) {
   const size = useTerminalDimensions();
   const here = () => props.state.product ?? props.state.line;
   const name = () => here()?.name ?? props.state.pkg?.name;
+  // green when signed in to the server, amber when the server is wanted and there is no sign-in, quiet when offline
+  const statusTone = () => (modeOf(props.session) === 'offline' ? theme.faint : props.session.authed && !props.session.expired ? theme.success : theme.warn);
   return (
     <box flexDirection="row" flexShrink={0} justifyContent="space-between">
       <Show when={size().width >= 100} fallback={<text fg={theme.faint}>{'? shortcuts'}</text>}>
@@ -38,10 +41,7 @@ export function StatusBar(props: { session: Session; state: GuideState }) {
           <text fg={theme.faint}>{` · ${displayPath(props.state.folder)}`}</text>
         </Show>
         <text fg={theme.faint}>{' · '}</text>
-        <Show when={props.session.authed} fallback={<text fg={theme.faint}>{'○ not signed in'}</text>}>
-          <text fg={theme.success}>{'●'}</text>
-          <text fg={theme.muted}>{` ${props.session.user?.username ?? 'signed in'}`}</text>
-        </Show>
+        <text fg={statusTone()}>{contextLine(props.session, { short: size().width < 100 })}</text>
       </box>
     </box>
   );

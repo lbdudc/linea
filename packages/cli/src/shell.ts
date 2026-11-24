@@ -5,7 +5,7 @@ import { execute, render, type Hooks } from './commands/dispatch.js';
 import { colorize } from './ui/style.js';
 import type { Session } from './commands/types.js';
 
-const KEPT = ['baseUrl', 'user', 'workdir', 'editor', 'theme'] as const;
+const KEPT = ['baseUrl', 'user', 'workdir', 'editor', 'theme', 'mode'] as const;
 
 /** What of a session is kept between runs (the same as the interactive window keeps): only what the command changed. */
 export function persistSession(patch: Partial<Session>): void {
@@ -39,6 +39,8 @@ export async function runShell(argv: readonly string[], out: NodeJS.WriteStream 
 
   const outcome = await execute({ tokens: argv, session, folder, hooks });
   const text = render(outcome);
+  // where it worked, for a command of the server: a script reading stdout (or --json) never sees it
+  if (outcome.context && !outcome.json) err.write(`${colorize(outcome.context, Boolean(err.isTTY) && !process.env['NO_COLOR'])}\n`);
   // a terminal that shows colour gets the same colours as the window (not when it is data, an error or a pipe)
   const colour = Boolean(out.isTTY) && !outcome.json && !outcome.error && !process.env['NO_COLOR'];
   if (text) (outcome.error && !outcome.json ? err : out).write(`${colorize(text, colour)}\n`);

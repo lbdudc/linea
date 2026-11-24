@@ -10,6 +10,10 @@ export const config = {
   get DEV_TOKEN(): string {
     return process.env['LINEA_TOKEN'] ?? '';
   },
+  /** `server` or `offline`: overrides the mode that was kept, for one run */
+  get MODE(): string {
+    return process.env['LINEA_MODE'] ?? '';
+  },
   get LOOPBACK_PORT(): number {
     return Number(process.env['LINEA_OAUTH_PORT'] ?? 53682);
   },

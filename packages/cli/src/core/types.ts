@@ -106,7 +106,7 @@ export interface PublicConfig {
   scope?: string;
   provider?: 'local' | 'gitlab' | 'github';
   /** Every git host that is on, as the server lists them (older servers do not say), and the primary one. */
-  hosts?: { id: 'local' | 'gitlab' | 'github'; clientId?: string; url?: string; authorizeUrl?: string; scope?: string; redirectUri?: string }[];
+  hosts?: { id: 'local' | 'gitlab' | 'github'; clientId?: string; url?: string; authorizeUrl?: string; scope?: string; redirectUri?: string; /** it can sign in with a code, no browser here */ device?: boolean; /** a token of the host is a way in */ token?: boolean; /** LINEA's own accounts: a password */ password?: boolean }[];
   primary?: 'local' | 'gitlab' | 'github';
 }
 

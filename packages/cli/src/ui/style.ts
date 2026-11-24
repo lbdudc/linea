@@ -29,6 +29,9 @@ const GLYPHS: Record<string, { glyph: Tone; rest: Tone }> = {
   '!': { glyph: 'warn', rest: 'plain' },
   '⚠': { glyph: 'warn', rest: 'plain' },
   '·': { glyph: 'dim', rest: 'dim' },
+  '●': { glyph: 'ok', rest: 'dim' },
+  '◐': { glyph: 'warn', rest: 'dim' },
+  '○': { glyph: 'faint', rest: 'dim' },
   '…': { glyph: 'faint', rest: 'dim' },
 };
 

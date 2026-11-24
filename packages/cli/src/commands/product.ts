@@ -21,6 +21,7 @@ import type { GenerateResult, ProductConflicts, SplalmLog } from '../core/types.
 import { displayPath } from '../core/workdir.js';
 import { isRepo } from '../core/gitops.js';
 import type { Command, Session } from './types.js';
+import { online } from '../core/mode.js';
 import { describeProductModels } from './modules.js';
 import { writeProductSelection } from '../core/selection.js';
 import { requireLine, resolveProductName, workdirOf } from './util.js';
@@ -57,6 +58,7 @@ const list: Command = {
 
 const show: Command = {
   name: 'product show',
+  where: 'both',
   summary: 'One product: its features, languages, version, models, and what LINEA says of its merge requests',
   usage: 'product show [product]',
   arg: 'product',
@@ -79,7 +81,7 @@ const show: Command = {
     ];
     // what the SPL's modules ask of a product, and what the host says of its open merge requests: when there is something to say
     if (isModularLine(lineDir)) lines.push('', await describeProductModels(session, name));
-    const merge = origin?.productId && session.authed && !session.local ? await mergeRequestsOf(origin.productId) : undefined;
+    const merge = origin?.productId && online(session) ? await mergeRequestsOf(origin.productId) : undefined;
     if (merge) lines.push('', merge);
     return lines.join('\n');
   },

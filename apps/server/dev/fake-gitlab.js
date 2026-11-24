@@ -32,7 +32,26 @@ app.get('/oauth/authorize', (req, res) => {
   res.redirect(redirect.toString());
 });
 
-app.post('/oauth/token', express.json(), express.urlencoded({ extended: true }), (_req, res) => {
+// device authorization: pending until the approval page is opened (GET /oauth/device?user_code=…, what a person would do in a browser)
+const devices = new Map(); // device_code -> { userCode, approved }
+app.post('/oauth/authorize_device', express.json(), express.urlencoded({ extended: true }), (_req, res) => {
+  const n = devices.size + 1;
+  const device = { userCode: `DEV${n}-GL${n}`, approved: false };
+  devices.set(`device-code-${n}`, device);
+  res.json({ device_code: `device-code-${n}`, user_code: device.userCode, verification_uri: `${BASE}/oauth/device`, verification_uri_complete: `${BASE}/oauth/device?user_code=${device.userCode}`, expires_in: 600, interval: 1 });
+});
+app.get('/oauth/device', (req, res) => {
+  const device = [...devices.values()].find((candidate) => candidate.userCode === req.query.user_code);
+  if (device) device.approved = true;
+  res.type('text/plain').send(device ? 'Device approved: go back to the terminal.' : 'Unknown code.');
+});
+
+app.post('/oauth/token', express.json(), express.urlencoded({ extended: true }), (req, res) => {
+  if (req.body?.grant_type === 'urn:ietf:params:oauth:grant-type:device_code') {
+    const device = devices.get(String(req.body.device_code));
+    if (!device) return res.status(400).json({ error: 'expired_token' });
+    if (!device.approved) return res.status(400).json({ error: 'authorization_pending' });
+  }
   res.json({
     access_token: 'dev-access-token',
     refresh_token: 'dev-refresh-token',

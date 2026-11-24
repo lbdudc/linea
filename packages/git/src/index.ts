@@ -1,8 +1,8 @@
 export type {
-  AccessEntry, AuthConfig, Capabilities, ChangeRequest, HostUser, PendingDeletion, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitHostKind, GitProvider, Id, Issue, IssueChanges, IssueFilter, Label, LabelEvent, Member, MergeOptions, MergeRequest, MergeRequestChanges, MergeRequestFilter, Milestone, Namespace, Page, Pipeline, PipelineJob, Release, ReleaseChanges, Repository, Runner, RepositoryFile, Template, TemplateKind, Thread, Tokens
+  AccessEntry, AuthConfig, Capabilities, ChangeRequest, HostUser, PendingDeletion, CiRunners, Comment, DeviceAuthorization, DevicePoll, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitHostKind, GitProvider, Id, Issue, IssueChanges, IssueFilter, Label, LabelEvent, Member, MergeOptions, MergeRequest, MergeRequestChanges, MergeRequestFilter, Milestone, Namespace, Page, Pipeline, PipelineJob, Release, ReleaseChanges, Repository, Runner, RepositoryFile, Template, TemplateKind, Thread, Tokens
 } from './provider.js'
 export { GIT_PROVIDER_METHODS } from './provider.js'
-export { GitAuthError, GitError, PackageNotAllowedError, PackageNotFoundError, PackageVersionExistsError, PackageVersionInvalidError } from './errors.js'
+export { GitAuthError, GitDeviceFlowError, GitError, PackageNotAllowedError, PackageNotFoundError, PackageVersionExistsError, PackageVersionInvalidError } from './errors.js'
 
 export type { GitConfig } from './config.js'
 export { gitConfigFromEnv } from './config.js'

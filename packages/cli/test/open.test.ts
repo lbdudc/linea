@@ -113,7 +113,7 @@ describe('linea open', () => {
     await setLocalLineModules(ws, line.dir, { 'file:modules/draw': '^0.1.0' });
     process.chdir(line.dir);
     const made = await sh('product', 'new', 'shop');
-    expect(made.err).toBe('');
+    expect(made.err.replace(/^[●◐○] .*\n/, '')).toBe('');
     return { ws, line };
   };
 
@@ -121,7 +121,7 @@ describe('linea open', () => {
     const { ws, line } = await workspace();
     fakeCommand('code');
     const r = await sh('open');
-    expect(r.err).toBe('');
+    expect(r.err.replace(/^[●◐○] .*\n/, '')).toBe('');
     expect(r.out).toMatch(/Opened SPL gis in code/);
 
     const file = path.join(line.dir, '.linea', 'gis.code-workspace');

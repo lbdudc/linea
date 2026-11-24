@@ -1,3 +1,4 @@
+import { modeOf } from '../core/mode.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -88,6 +89,8 @@ export async function runChecks(session: Session, opts: { online: boolean }): Pr
   } catch (e) {
     checks.push({ level: 'warn', label: 'editor', detail: (e as Error).message });
   }
+
+  checks.push({ level: 'ok', label: 'mode', detail: `${modeOf(session)}${modeOf(session) === 'offline' ? ' (this machine only)' : ` (${session.baseUrl})`}` });
 
   try {
     const { config, source } = gitSettings();

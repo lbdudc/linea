@@ -6,7 +6,7 @@ import { KEYS_HELP } from '../ui/keys.js';
 
 /** The order the groups are shown in; anything else follows alphabetically under "other". */
 const GROUPS: { title: string; names: string[] }[] = [
-  { title: 'Account and setup', names: ['login', 'logout', 'whoami', 'config', 'init', 'doctor'] },
+  { title: 'Account, server and mode', names: ['whoami', 'login', 'logout', 'remote', 'mode', 'server', 'config', 'init', 'doctor'] },
   { title: 'LINEA ⇄ your machine', names: ['get', 'status', 'push'] },
   { title: 'Open', names: ['open'] },
   { title: 'SPLs', names: ['cd', 'spl', 'check'] },
@@ -26,7 +26,9 @@ const detail = (c: Command): string[] => {
   if (c.usage) lines.push(`  usage: ${usageOf(c)}`);
   if (c.flags?.length) lines.push(`  flags: ${c.flags.join('  ')}`);
   if (c.aliases?.length) lines.push(`  aliases: ${c.aliases.join(', ')}`);
-  if (c.requiresAuth) lines.push('  needs you signed in (login)');
+  const where = c.where ?? (c.requiresAuth ? 'server' : 'machine');
+  if (where === 'server') lines.push('  needs the LINEA server: server mode, signed in (mode server, login)');
+  else if (where === 'both') lines.push('  works on the LINEA server (server mode) or on this machine (offline), by the mode you are in');
   return lines;
 };
 

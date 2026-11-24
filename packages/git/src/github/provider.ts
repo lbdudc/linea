@@ -7,6 +7,8 @@ import { ACCESS } from '../access.js'
 import { readRepositoryTemplates } from '../templates.js'
 import { GitAuthError, GitError } from '../errors.js'
 import { GitHubClient } from './client.js'
+import { pollDevice, startDevice } from '../device.js'
+import type { DeviceAuthorization, DevicePoll } from '../provider.js'
 import { GITHUB_SCOPE, githubApiUrl, githubWebIdeUrl, githubWebUrl, type GitHubConfig } from './config.js'
 
 /**
@@ -172,6 +174,14 @@ export class GitHubProvider implements GitProvider {
     const data = (await response.json()) as Json
     if (!response.ok || data.error) throw new GitAuthError(data.error_description ?? data.error ?? 'unauthorized')
     return { accessToken: data.access_token, refreshToken: data.refresh_token ?? null }
+  }
+
+  startDeviceAuthorization({ scope = GITHUB_SCOPE }: { scope?: string } = {}): Promise<DeviceAuthorization> {
+    return startDevice(`${githubWebUrl(this.config)}/login/device/code`, { client_id: this.config.clientId, scope })
+  }
+
+  pollDeviceAuthorization({ deviceCode, interval }: { deviceCode: string, interval?: number }): Promise<DevicePoll> {
+    return pollDevice(`${githubWebUrl(this.config)}/login/oauth/access_token`, { device_code: deviceCode, client_id: this.config.clientId, client_secret: this.config.clientSecret }, interval)
   }
 
   exchangeCode({ code, redirectUri }: { code: string, redirectUri: string }): Promise<Tokens> {

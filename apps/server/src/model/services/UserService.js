@@ -206,9 +206,71 @@ export default class UserService {
     return this.#exchangeCodeAndUpsertUser({ host, code, redirectUri, logLabel: `[loginFromGitLabNative ${host}]` });
   }
 
-  /** Adds an account on another host to the user who is signed in (the same person on GitLab and on GitHub). */
-  linkIdentity = async ({ userId, host, code }) => {
-    const redirectUri = getGitProvider({ host }).authConfig().redirectUri.replace(/\s/g, '');
+  /** Whether a host can sign people in from a machine with no browser: it has the flow and the administrator has not turned it off. */
+  deviceAvailable = (host) => {
+    try {
+      return typeof getGitProvider({ host }).startDeviceAuthorization === 'function' && hostSettings(host).deviceFlow !== false;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Starts a device authorization on a host. The code goes to the client and comes back to poll: the server keeps nothing. */
+  startDeviceAuthorization = async ({ host }) => {
+    if (!this.deviceAvailable(host)) throw new DeviceFlowError('unavailable', `${host} has no device sign-in here`);
+    return this.#deviceCall(() => getGitProvider({ host }).startDeviceAuthorization());
+  }
+
+  /**
+   * One poll: `{ status: 'pending', interval }`, or the person (signed in, or with the account linked when `linkUserId` is given).
+   */
+  pollDeviceAuthorization = async ({ host, deviceCode, interval, linkUserId }) => {
+    if (!this.deviceAvailable(host)) throw new DeviceFlowError('unavailable', `${host} has no device sign-in here`);
+    const git = getGitProvider({ host });
+    const poll = await this.#deviceCall(() => git.pollDeviceAuthorization({ deviceCode, interval }));
+    if (poll.status === 'pending') return poll;
+    const user = await this.#upsertFromTokens({ host, tokens: poll.tokens, linkUserId, logLabel: `[device ${linkUserId ? 'link' : 'login'} ${host}]` });
+    if (linkUserId) this.#forgetLogin(linkUserId);
+    return { status: 'done', user };
+  }
+
+  #deviceCall = async (call) => {
+    try {
+      return await call();
+    } catch (error) {
+      if (error?.name !== 'GitDeviceFlowError') throw error;
+      const reason = { expired_token: 'expired', access_denied: 'denied', device_flow_disabled: 'disabled', unsupported: 'unavailable' }[error.reason] ?? 'unavailable';
+      throw new DeviceFlowError(reason, error.message);
+    }
+  }
+
+  /**
+   * Signs in with a token of a host (a personal access token, or the git token of a LINEA account), for someone who has signed in
+   * here before: a token never makes a new person. It is checked against the host and not kept.
+   */
+  loginWithToken = async ({ host, token }) => {
+    const user = await this.userOfHostToken({ host, token });
+    if (user.disabled) throw new IncorrectCredentialsError();
+    return user;
+  }
+
+  /** Who a token of a host belongs to. Incorrect credentials when the host does not know it, no LINEA account when nobody here has that account. */
+  userOfHostToken = async ({ host, token }) => {
+    if (!token) throw new IncorrectCredentialsError();
+    let hostUser;
+    try {
+      hostUser = await getGitProvider({ host }).getUser({ token });
+    } catch {
+      throw new IncorrectCredentialsError();
+    }
+    const user = hostUser?.username ? await this.userRepository.findByHostAccount({ host, hostUsername: hostUser.username, primary: primaryHost() }) : null;
+    if (!user) throw new NoLineaAccountError(host);
+    return user;
+  }
+
+  /** Adds an account on another host to the user who is signed in (the same person on GitLab and on GitHub). `redirectUri`: a terminal's (loopback) one; the web page's by default. */
+  linkIdentity = async ({ userId, host, code, redirectUri: given }) => {
+    const redirectUri = given ?? getGitProvider({ host }).authConfig().redirectUri.replace(/\s/g, '');
     const user = await this.#exchangeCodeAndUpsertUser({ host, code, redirectUri, linkUserId: userId, logLabel: `[linkIdentity ${host}]` });
     this.#forgetLogin(userId);
     return user;
@@ -336,10 +398,21 @@ export default class UserService {
   }
 
   #exchangeCodeAndUpsertUser = async ({ host, code, redirectUri, linkUserId, logLabel }) => {
+    let tokens;
+    try {
+      tokens = await getGitProvider({ host }).exchangeCode({ code, redirectUri });
+    } catch (error) {
+      console.error(`${logLabel} error:`, error.constructor.name, error.message);
+      throw error;
+    }
+    return this.#upsertFromTokens({ host, tokens, linkUserId, logLabel });
+  }
+
+  // the person a host's tokens are of: found, made, or (when `linkUserId`) the one that is signed in, who gets the account
+  #upsertFromTokens = async ({ host, tokens: { accessToken, refreshToken }, linkUserId, logLabel }) => {
     const session = await this.dataSource.startTransaction();
     const git = getGitProvider({ host });
     try {
-      const { accessToken, refreshToken } = await git.exchangeCode({ code, redirectUri });
       const userData = await git.getUser({ token: accessToken });
       const account = { host, hostUsername: userData.username, primary: primaryHost() };
 
@@ -403,7 +476,8 @@ export default class UserService {
         // a host that gives a code but has no OAuth application has no way in: offering its button would only fail
         if (hostDescriptor(host).oauth && !clientId) return [];
         // `defaultNamespace`: where the form that makes an SPL starts on this host (the host plugin's setting)
-        return [{ id: host, provider: kind, clientId, redirectUri, url, authorizeUrl, scope, defaultNamespace: hostSettings(host).defaultNamespace || null, terms: hostTerms(host) }];
+        // `device`: it can sign in from a terminal with no browser; `token`: a token of the host is a way in; `password`: LINEA's own accounts
+        return [{ id: host, provider: kind, clientId, redirectUri, url, authorizeUrl, scope, defaultNamespace: hostSettings(host).defaultNamespace || null, terms: hostTerms(host), device: this.deviceAvailable(host), token: true, password: host === 'local' }];
       } catch {
         return []; // on, but not set up yet (no address): it has no button
       }
@@ -448,6 +522,24 @@ export class GitHostIsOwnError extends Error {
   constructor(host) {
     super(`${host} is the host this person signs in to LINEA with: it cannot be removed.`);
     this.code = 'GIT_HOST_IS_OWN';
+  }
+}
+
+/** A valid account on a host, but nobody has signed in to LINEA with it (a token never makes a person). */
+export class NoLineaAccountError extends Error {
+  constructor(host) {
+    super(`No LINEA account for that ${host} user: sign in once with ${host} first.`);
+    this.code = 'NO_LINEA_ACCOUNT';
+    this.host = host;
+  }
+}
+
+/** The device sign-in cannot go on. `reason`: unavailable (the host has none or it is off here), disabled (the host's app has it off), expired, denied. */
+export class DeviceFlowError extends Error {
+  constructor(reason, message) {
+    super(message ?? `Device sign-in: ${reason}`);
+    this.code = 'DEVICE_FLOW';
+    this.reason = reason;
   }
 }
 

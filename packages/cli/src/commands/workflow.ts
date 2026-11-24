@@ -15,14 +15,15 @@ import type { Command, Session } from './types.js';
 /**
  * The commands that used to ask you which side you were on (`--cloud`, a mode, a second command to bring it down): they look at both
  * LINEA and your machine, and do the whole thing. Signed in, a new SPL or product is made on LINEA and comes to your folder; signed out,
- * or with `--local`, it is made here, and `push` puts it on LINEA when you are ready.
+ * or offline (`mode offline`, or `--offline` for one command), it is made here, and `push` puts it on LINEA when you are ready.
  */
 
 const workdirOf = (session: Session): string => session.workdir ?? defaultDataDir();
 const LOCATION = /^(gitlab|github):/;
 
 /** Whether this command may talk to the server: signed in, and not told `--local`. */
-export const online = (session: Session): boolean => session.authed && !session.local;
+import { modeOf, online } from '../core/mode.js';
+export { online };
 
 // ---------------------------------------------------------------- spl list
 
@@ -34,6 +35,7 @@ interface Row {
 
 const splList: Command = {
   name: 'spl list',
+  where: 'both',
   summary: 'Your SPLs: the ones on this machine and the ones on LINEA, side by side',
   usage: 'spl list [--local]',
   flags: ['--local'],
@@ -48,8 +50,7 @@ const splList: Command = {
     }
 
     let note = '';
-    if (!session.authed) note = 'Not signed in: login shows the SPLs of LINEA too.';
-    else if (session.local) note = '';
+    if (!online(session)) note = modeOf(session) === 'offline' ? 'Offline: only the SPLs on this machine. mode server shows the SPLs of LINEA too.' : '';
     else {
       try {
         for (const l of (await splalm.get('/api/lines/enrolled')) as SplalmLineSummary[]) {
@@ -79,6 +80,7 @@ const splList: Command = {
 
 const splNew: Command = {
   name: 'spl new',
+  where: 'both',
   summary: 'Create an SPL. Made of modules by default (--plain for the classic kind); signed in, it is made on LINEA and comes to your folder',
   usage: 'spl new <name> [--modules gitlab:g/m,github:o/m] [--plain] [--desc text] [--namespace id] [--local]',
   flags: ['--modules a,b', '--plain', '--desc text', '--namespace id', '--local'],
@@ -101,7 +103,7 @@ const splNew: Command = {
       const tracked = trackSession(ctx);
       const out = [createModularLineHere(session, name, tracked.ctx.updateSession)];
       for (const m of modules) out.push(String(await commandNamed('spl add').run({ ...tracked.now(), args: [m] })));
-      if (!session.authed && !session.local) out.push('It is only on this machine: sign in (login) and push uploads it to LINEA.');
+      out.push('Offline: it is only on this machine. After `mode server` (and login), push uploads it to LINEA.');
       return out.join('\n');
     }
 
@@ -140,6 +142,7 @@ function trackSession(ctx: Parameters<Command['run']>[0]) {
 
 const productNew: Command = {
   name: 'product new',
+  where: 'both',
   summary: 'Create a product: a name and the features it selects, or a spec file. In an SPL that is on LINEA it is made there and comes to your folder',
   usage: 'product new <name> [--features A,B] [--version x.y.z] [--local]   |   product new --from <spec.json>',
   flags: ['--from spec.json', '--features A,B', '--version x.y.z', '--local'],

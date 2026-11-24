@@ -1,7 +1,13 @@
 export interface Session {
   baseUrl: string;
   authed: boolean;
-  user?: { userId: string; username: string };
+  /** `server` or `offline` (see `mode`); not set in a session made by hand, which is server when signed in and offline when not */
+  mode?: 'server' | 'offline';
+  /** `--offline` said on this command: the mode is offline for it alone */
+  modeOverride?: boolean;
+  /** the sign-in is there but the server no longer takes it */
+  expired?: boolean;
+  user?: { userId: string; username: string; hosts?: string[]; activeHost?: string | null };
   /** where SPLs, modules and metamodels live side by side */
   workdir?: string;
   /** the folder commands act in: the one the shell was started in, or the one the window was opened in (and `cd` moved to) */
@@ -12,8 +18,6 @@ export interface Session {
   theme?: string;
   /** true in the interactive window, where a terminal editor cannot be started */
   interactive?: boolean;
-  /** `--local` said on this command: do not talk to the server */
-  local?: boolean;
   /** set by `--json`: commands that can, put their result in `data` */
   json?: boolean;
 }
@@ -87,8 +91,13 @@ export interface Command {
   aliases?: string[];
   summary: string;
   usage?: string;
-  /** it only works signed in (it talks to the server and nothing else) */
+  /** it only works signed in (it talks to the server and nothing else): same as `where: 'server'` */
   requiresAuth?: boolean;
+  /**
+   * Where it works: `server` (needs the LINEA server and a sign-in), `both` (it does one thing on the server and another on this
+   * machine, by the mode), `machine` (this machine only, or git: the default).
+   */
+  where?: 'server' | 'both' | 'machine';
   /** it can be given up while it runs (Esc in the window) */
   cancellable?: boolean;
   /** it still works, but is not listed: what it did is part of another command now (`spl modules` is in `spl show`) */

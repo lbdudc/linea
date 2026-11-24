@@ -50,3 +50,14 @@ export class PackageVersionInvalidError extends Error {
     this.name = 'PackageVersionInvalidError'
   }
 }
+
+/** The device authorization flow cannot go on: the code expired, the user refused, the host's app has it off, or the host has none. */
+export class GitDeviceFlowError extends GitAuthError {
+  reason: 'expired_token' | 'access_denied' | 'device_flow_disabled' | 'unsupported'
+
+  constructor(reason: 'expired_token' | 'access_denied' | 'device_flow_disabled' | 'unsupported', message: string = reason) {
+    super(message)
+    this.name = 'GitDeviceFlowError'
+    this.reason = reason
+  }
+}

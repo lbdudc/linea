@@ -2,15 +2,18 @@ import fs from 'node:fs';
 import { createGitProvider } from '@lbdudc/linea-git';
 import { flagString, parseFlags } from '../core/args.js';
 import { config } from '../core/config.js';
-import { configureClient, splalm, startAutoRefresh } from '../core/client.js';
-import { clearAuth, loadState, saveState, type StoredGit } from '../core/credentials.js';
+import { configureClient, SessionExpiredError, splalm, SplalmError, startAutoRefresh } from '../core/client.js';
+import open from 'open';
+import { clearAuth, loadState, saveState, storedGit, type StoredGit } from '../core/credentials.js';
+import { contextLine, modeOf, shortServer } from '../core/mode.js';
 import { gitConfigOf, hostLabel } from '../core/git.js';
 import { checkGitAccess, cloneUrlOf, credentialOptions, gitAsync } from '../core/gitops.js';
 import { runLoopbackOAuth } from '../oauth/loopback.js';
 import type { LoginResponse, PublicConfig } from '../core/types.js';
+import { commandNamed } from './lookup.js';
 import type { Command, CommandContext } from './types.js';
 
-type HostId = NonNullable<PublicConfig['provider']>;
+export type HostId = NonNullable<PublicConfig['provider']>;
 
 /** The host a sign-in is for: the one asked with `--host`, else the primary one; it has to be one the server has on. */
 export function hostToSignIn(cfg: PublicConfig, asked: string | undefined): HostId {
@@ -24,23 +27,27 @@ export function hostToSignIn(cfg: PublicConfig, asked: string | undefined): Host
 const configOf = (cfg: PublicConfig, host: HostId): PublicConfig =>
   ({ ...cfg, ...(cfg.hosts?.find((entry) => entry.id === host) ?? {}), provider: host }) as PublicConfig;
 
-/** The browser round trip: LINEA's server gets the code, and gives the CLI a session. */
-async function signIn(ctx: CommandContext, all: PublicConfig, host: HostId): Promise<LoginResponse> {
+/** The browser round trip with a host: the code it gives back, and the loopback address it was sent to. */
+export async function browserCode(ctx: CommandContext, all: PublicConfig, host: HostId): Promise<{ code: string; redirectUri: string }> {
   const cfg = configOf(all, host);
   if (!cfg.clientId || !cfg.url) {
     throw new Error(`The backend's /api/users/config didn't return a ${hostLabel(host)} clientId/url (internal_error).`);
   }
   const name = hostLabel(host);
   ctx.setStatus(`waiting for ${name} authorization (${cfg.url}) in your browser…`);
-  const { code, redirectUri } = await runLoopbackOAuth({
+  return runLoopbackOAuth({
     authorizeBase: cfg.url,
     ...(cfg.authorizeUrl ? { authorizeUrl: cfg.authorizeUrl } : {}),
     ...(cfg.scope ? { scope: cfg.scope } : {}),
     clientId: cfg.clientId,
     port: config.LOOPBACK_PORT,
-    onUrl: (url) => ctx.print(`Opening your browser to authorize with ${name}.\n  If it didn't open, visit:\n  ${url}`, 'info'),
+    onUrl: (url) => ctx.print(`Opening your browser to authorize with ${name}.\n  If it didn't open, visit:\n  ${url}\n  (no browser here? run it again with --device)`, 'info'),
   });
+}
 
+/** The browser round trip: LINEA's server gets the code, and gives the CLI a session. */
+async function signIn(ctx: CommandContext, all: PublicConfig, host: HostId): Promise<LoginResponse> {
+  const { code, redirectUri } = await browserCode(ctx, all, host);
   ctx.setStatus('exchanging authorization code…');
   // (the old path is the primary host's, and the one servers from before there were several hosts have; the others go by name)
   const primary = all.primary ?? all.provider ?? 'gitlab';
@@ -51,8 +58,9 @@ async function signIn(ctx: CommandContext, all: PublicConfig, host: HostId): Pro
 function keepSession(ctx: CommandContext, res: LoginResponse): LoginResponse {
   configureClient({ token: res.token });
   startAutoRefresh();
-  saveState({ token: res.token, user: res.user });
-  ctx.updateSession({ authed: true, user: res.user });
+  // signing in is choosing the server: the mode says so (and `login` says it was changed)
+  saveState({ token: res.token, user: res.user, mode: 'server', baseUrl: ctx.session.baseUrl });
+  ctx.updateSession({ authed: true, expired: false, user: res.user, mode: 'server' });
   return res;
 }
 
@@ -113,13 +121,13 @@ async function usePersonalToken(ctx: CommandContext, cfg: PublicConfig, token: s
   // sent the token directly (a helper that git does not run, or does not trust, is a failure that only shows there)
   // (the server goes with it: the helper is another process, and only gives git access that belongs to the server it finds saved)
   const previous = loadState();
-  saveState({ git: stored, baseUrl: ctx.session.baseUrl });
+  saveState({ git: stored, baseUrl: ctx.session.baseUrl, personal: { ...previous.personal, [provider]: stored } });
   if (repos[0]) {
     const url = cloneUrlOf(repos[0].webUrl);
     ctx.setStatus(`trying git on ${repos[0].path} the way get does…`);
     const viaHelper = await gitAsync(undefined, [...credentialOptions(url), 'ls-remote', '--heads', url]);
     if (viaHelper.status !== 0) {
-      saveState({ git: previous.git, baseUrl: previous.baseUrl });
+      saveState({ git: previous.git, baseUrl: previous.baseUrl, personal: previous.personal });
       throw new Error(
         `${name} accepts the token when git is sent it directly, but not through linea's credential helper, which is what get and push use ` +
           `(${repos[0].path}): ${(viaHelper.stderr || viaHelper.stdout).trim().split('\n').slice(-1)[0]}\n` +
@@ -130,78 +138,125 @@ async function usePersonalToken(ctx: CommandContext, cfg: PublicConfig, token: s
   return `${name} (${cfg.url}) accepted the token${repos[0] ? ' for its API and for git, through the credential helper too' : ' for its API (it has no SPL repository to try git on yet)'}: get, push and the registry use it from now on.`;
 }
 
+/** Waits between polls; a test replaces it. */
+export const timing = { sleep: (ms: number, signal?: AbortSignal): Promise<void> => new Promise((resolve) => { const t = setTimeout(resolve, ms); signal?.addEventListener('abort', () => { clearTimeout(t); resolve(); }, { once: true }); }) };
+
+interface DeviceStart { deviceCode: string; userCode: string; verificationUri: string; verificationUriComplete?: string; expiresIn: number; interval: number }
+
+/**
+ * Signs in (or links an account) without a browser on this machine: the person is shown an address and a code, approves on another
+ * screen, and this polls LINEA, which asks the host. Resolves with what the server answers once the host has the approval.
+ */
+export async function runDeviceFlow(ctx: CommandContext, host: HostId, purpose: 'login' | 'link'): Promise<Record<string, unknown>> {
+  const name = hostLabel(host);
+  const start = (await splalm.post(`/api/users/device/${host}`)) as DeviceStart;
+  ctx.print(`To sign in with ${name}, open  ${start.verificationUri}  and enter the code:  ${start.userCode}`, 'info');
+  const complete = start.verificationUriComplete;
+  if (complete && process.stdout.isTTY && !process.env['SSH_CONNECTION']) void open(complete).catch(() => {});
+  ctx.setStatus(`waiting for you to approve it with ${name} (code ${start.userCode})…`);
+  const path = purpose === 'login' ? `/api/users/login/${host}/device` : `/api/users/identities/${host}/device`;
+  let interval = Math.max(1, start.interval);
+  const deadline = Date.now() + start.expiresIn * 1000;
+  while (Date.now() < deadline) {
+    await timing.sleep(interval * 1000, ctx.signal);
+    if (ctx.signal?.aborted) throw new Error('Cancelled.');
+    const answer = (await splalm.post(path, { device_code: start.deviceCode, interval })) as Record<string, unknown>;
+    if (answer['status'] === 'pending') {
+      interval = Math.max(interval, Number(answer['interval'] ?? interval));
+      continue;
+    }
+    return answer;
+  }
+  throw new Error('The code expired before it was approved: run the command again.');
+}
+
+/** The remotes the server has on, with what each can sign in with, for a message. */
+export function remotesText(cfg: PublicConfig): string {
+  return (cfg.hosts ?? []).map((h) => h.id).join(', ') || (cfg.provider ?? 'none');
+}
+
 const login: Command = {
   name: 'login',
-  summary: 'Sign in to LINEA: with your git host (opens your browser), or with your account here when LINEA keeps the repositories itself; --token gives a personal access token for git instead',
-  usage: 'login [--host gitlab|github|local] [--token <token or file>] [--username name] [--password <password or file>]',
-  flags: ['--host name', '--token <token or file>', '--username name', '--password <password or file>'],
+  summary: 'Sign in to the LINEA server through one of its remotes: the browser, a code (--device), a token (--token) or, for LINEA git, a password',
+  usage: 'login [gitlab|github|local] [--device] [--token <token or file>] [--username name] [--password <password or file>]',
+  flags: ['--device', '--token <token or file>', '--username name', '--password <password or file>', '--host name'],
   run: async (ctx) => {
-    const { flags } = parseFlags(ctx.args, { value: { token: undefined, username: undefined, host: undefined, password: undefined } });
+    const { flags, positional } = parseFlags(ctx.args, { value: { token: undefined, username: undefined, host: undefined, password: undefined }, bool: { device: undefined } });
     const given = flagString(flags, 'token');
     const personal = given === undefined ? undefined : readToken(given);
     const cfg = (await splalm.get('/api/users/config')) as PublicConfig;
-    const host = hostToSignIn(cfg, flagString(flags, 'host'));
+    const host = hostToSignIn(cfg, positional[0] ?? flagString(flags, 'host'));
+    const wasMode = modeOf(ctx.session);
+    const entry = cfg.hosts?.find((h) => h.id === host);
 
-    // already signed in, and only the token is wanted: no browser
     let username = ctx.session.user?.username;
     if (host === 'local') {
-      if (personal !== undefined) throw new Error('A personal token is for GitLab or GitHub; here you sign in with your account (the git token comes with it).');
       const password = flagString(flags, 'password') ?? process.env['LINEA_PASSWORD'];
-      username = (await signInLocal(ctx, flagString(flags, 'username'), password === undefined ? undefined : readSecret(password))).user.username;
-    } else if (personal === undefined || !ctx.session.authed) {
+      if (personal !== undefined && password === undefined) {
+        // the git token of a LINEA git account is a way in as well
+        username = (keepSession(ctx, (await splalm.post('/api/users/login/local/token', { token: personal })) as LoginResponse)).user.username;
+      } else {
+        if (personal !== undefined) throw new Error('For LINEA git give a password or a token, not both.');
+        username = (await signInLocal(ctx, flagString(flags, 'username'), password === undefined ? undefined : readSecret(password))).user.username;
+      }
+    } else if (personal !== undefined) {
+      // a token is checked by the host, and by LINEA, which must know the person (a token never makes a new one)
+      let res: LoginResponse | undefined;
+      try {
+        res = (await splalm.post(`/api/users/login/${host}/token`, { token: personal })) as LoginResponse;
+      } catch (e) {
+        // a server from before this way in: what the token can still do is give this machine git access, if there is a session already
+        if (!(e instanceof SplalmError && e.status === 404) || !ctx.session.authed) throw e;
+      }
+      if (res) username = keepSession(ctx, res).user.username;
+      ctx.print(await usePersonalToken(ctx, configOf(cfg, host), personal, flagString(flags, 'username')), 'info');
+      return `✓ Signed in${username ? ` as ${username}` : ''}.${modeChange(wasMode)}`;
+    } else if (flags['device']) {
+      if (!entry?.device) throw new Error(`This LINEA has no sign-in with a code for ${hostLabel(host)}${entry ? ' (its server is older than this CLI, or an administrator turned it off)' : ''}: use the browser (login ${host}) or a token (login ${host} --token <token or file>).`);
+      const res = (await runDeviceFlow(ctx, host, 'login')) as unknown as LoginResponse;
+      username = keepSession(ctx, res).user.username;
+    } else {
       username = (await signIn(ctx, cfg, host)).user.username;
     }
 
-    if (personal !== undefined) {
-      ctx.print(await usePersonalToken(ctx, configOf(cfg, host), personal, flagString(flags, 'username')), 'info');
-      return `✓ Signed in${username ? ` as ${username}` : ''}.`;
-    }
-
-    const git = await storeGitCredentials(ctx.session.baseUrl);
+    const git = await storeGitCredentials(ctx.session.baseUrl, { host: host as HostId });
     ctx.print(
       git
         ? `Git access to ${git} is set up too: get and push work.`
         : 'This LINEA server did not give git access (it may be older than this CLI). Give a personal access token for your git host: login --token <token or file>',
       'info',
     );
-    return `✓ Signed in as ${username}.`;
+    const others = (cfg.hosts ?? []).filter((h) => h.id !== host).map((h) => h.id);
+    if (others.length) ctx.print(`This LINEA also has: ${others.join(', ')}  (login <remote> to sign in with one, remote link <remote> to add an account)`, 'info');
+    return `✓ Signed in as ${username} with ${hostLabel(host)}.${modeChange(wasMode)}\n${contextLine(ctx.session)}`;
   },
 };
+
+const modeChange = (was: 'server' | 'offline'): string => (was === 'offline' ? ' Mode is now: server (it was offline).' : '');
 
 /** A password given as itself or as the path of a file that holds it. */
 function readSecret(value: string): string {
   return (fs.existsSync(value) && fs.statSync(value).isFile() ? fs.readFileSync(value, 'utf8') : value).replace(/\r?\n$/, '');
 }
 
-/** Which remote the lines and products are of (the profile), when the person has accounts on more than one host. */
-const profile: Command = {
-  name: 'profile',
-  summary: 'The git host you are working on (your profile) when you have accounts on more than one: profile, or profile <host> to switch',
-  usage: 'profile [gitlab|github|local]',
-  run: async (ctx) => {
-    if (!ctx.session.authed) return 'Not signed in. Run: login';
-    const wanted = ctx.args.find((arg) => !arg.startsWith('-'));
-    const answer = (wanted
-      ? await splalm.put('/api/users/profile', { host: wanted })
-      : await splalm.post('/api/users/loginFromServiceToken').then((res) => (res as { user: { hosts?: string[]; activeHost?: string | null } }).user)) as { hosts?: string[]; activeHost?: string | null };
-    if (wanted) {
-      // what git is given follows the profile
-      await storeGitCredentials(ctx.session.baseUrl, { force: true });
-      return `✓ Working on ${hostLabel(answer.activeHost ?? wanted)} now.`;
-    }
-    return [`Working on: ${answer.activeHost ? hostLabel(answer.activeHost) : 'none (none of your hosts is on)'}`, `Accounts:   ${(answer.hosts ?? []).map(hostLabel).join(', ') || '—'}`].join('\n');
-  },
-};
-
 /**
  * The user's own git token and host, from the server, kept for `git` and the registry; the name of the host, or undefined. What is kept
- * belongs to the server it came from. A token the user gave is theirs: it stays, and what the server says does not replace it.
+ * belongs to the server it came from. A token the user gave is theirs: it stays, and what the server says does not replace it; the ones
+ * given for each remote are kept apart (`personal`), so that switching remotes does not lose them.
+ * `host`: the remote it is for (the one in use when not said).
  */
-export async function storeGitCredentials(server: string, { force = false }: { force?: boolean } = {}): Promise<string | undefined> {
-  const kept = loadState().git;
-  if (!force && kept?.source === 'token' && kept.server === server) return hostLabel(kept.provider);
+export async function storeGitCredentials(server: string, { force = false, host }: { force?: boolean; host?: HostId } = {}): Promise<string | undefined> {
+  const state = loadState();
+  const wanted = host ?? (state.user?.activeHost as HostId | undefined) ?? undefined;
+  const mine = wanted ? state.personal?.[wanted] : undefined;
+  if (mine && mine.server === server) {
+    saveState({ git: mine });
+    return hostLabel(mine.provider);
+  }
+  const kept = state.git;
+  if (!force && kept?.source === 'token' && kept.server === server && (!wanted || kept.provider === wanted)) return hostLabel(kept.provider);
   try {
-    const creds = (await splalm.get('/api/users/git-credentials')) as Omit<StoredGit, 'server' | 'source'>;
+    const creds = (await splalm.get(`/api/users/git-credentials${wanted ? `?host=${wanted}` : ''}`)) as Omit<StoredGit, 'server' | 'source'>;
     if (!creds?.token) throw new Error('no token');
     saveState({ git: { ...creds, server, source: 'server' } });
     return hostLabel(creds.provider);
@@ -214,7 +269,7 @@ export async function storeGitCredentials(server: string, { force = false }: { f
 
 const logout: Command = {
   name: 'logout',
-  summary: 'Sign out and clear stored credentials',
+  summary: 'Sign out of the LINEA server and clear what was stored for the sign-in (the mode stays)',
   usage: 'logout',
   run: async (ctx) => {
     try {
@@ -224,28 +279,73 @@ const logout: Command = {
     }
     configureClient({ token: '' });
     clearAuth();
-    ctx.updateSession({ authed: false, user: undefined });
-    return 'Signed out.';
+    ctx.updateSession({ authed: false, expired: false, user: undefined });
+    return modeOf(ctx.session) === 'server'
+      ? `Signed out. Still in server mode (${shortServer(ctx.session.baseUrl)}): login to sign in again, or mode offline to work on this machine only.`
+      : 'Signed out. Offline: nothing here needed the server.';
   },
 };
 
+/** Where git access comes from, in words. */
+function gitAccessText(session: { baseUrl: string }): string {
+  const git = storedGit();
+  if (process.env['LINEA_GIT_TOKEN'] || process.env['GITLAB_TOKEN'] || process.env['GITHUB_TOKEN']) return 'from the environment';
+  return git ? `${hostLabel(git.provider)} as ${git.username} (${git.source === 'token' ? 'your personal token' : 'given by LINEA'})` : `none (login, or login --token <token or file>)`;
+}
+
 const whoami: Command = {
   name: 'whoami',
-  aliases: ['me'],
-  summary: 'Show the signed-in user and current context',
+  aliases: ['me', 'account'],
+  summary: 'Where you are: the mode, the server, who you are, the remote you work on and the accounts you have',
   usage: 'whoami',
   run: async (ctx) => {
-    if (!ctx.session.authed) return 'Not signed in. Run: login';
-    const res = (await splalm.post('/api/users/loginFromServiceToken')) as LoginResponse;
-    configureClient({ token: res.token });
-    saveState({ token: res.token, user: res.user });
-    ctx.updateSession({ authed: true, user: res.user });
-    const git = await storeGitCredentials(ctx.session.baseUrl); // the git token is renewed along with the session
-    return [
-      `${res.user.username}  (id ${res.user.userId})`,
-      `  server:     ${ctx.session.baseUrl}`,
-      `  git access: ${git ?? 'none (login --token <token or file>)'}`,
-    ].join('\n');
+    const lines: string[] = [];
+    const fromEnv = process.env['LINEA_BASE_URL'] ? '  (from LINEA_BASE_URL)' : '';
+    if (modeOf(ctx.session) === 'server' && ctx.session.authed) {
+      try {
+        const res = (await splalm.post('/api/users/loginFromServiceToken')) as LoginResponse;
+        configureClient({ token: res.token });
+        saveState({ token: res.token, user: res.user });
+        ctx.updateSession({ authed: true, expired: false, user: res.user });
+        await storeGitCredentials(ctx.session.baseUrl); // the git token is renewed along with the session
+      } catch (e) {
+        if (!(e instanceof SessionExpiredError)) throw e;
+        ctx.updateSession({ expired: true });
+      }
+    }
+    const s = ctx.session;
+    lines.push(contextLine(s));
+    lines.push(`  mode:       ${modeOf(s)}${s.modeOverride ? ' (this command only)' : ''}${modeOf(s) === 'offline' ? '   this machine only: mode server connects to LINEA' : ''}`);
+    lines.push(`  server:     ${s.baseUrl}${fromEnv}${modeOf(s) === 'offline' ? '   (not used while offline)' : ''}`);
+    if (s.user) {
+      const checked = modeOf(s) === 'server' && !s.expired;
+      lines.push(`  signed in:  ${s.user.username}${checked ? '' : '   (as of the last sign in; not checked now)'}`);
+      lines.push(`  remote:     ${s.user.activeHost ? hostLabel(s.user.activeHost) : 'none (none of your remotes is on)'}  (the one you work on: remote use <name>)`);
+      lines.push(`  accounts:   ${(s.user.hosts ?? []).map((h) => hostLabel(h)).join(', ') || '—'}`);
+    } else {
+      lines.push('  signed in:  no' + (modeOf(s) === 'server' ? '   (login)' : ''));
+    }
+    lines.push(`  git access: ${gitAccessText(s)}`);
+    return lines.join('\n');
+  },
+};
+
+/** Keeps what the server says of the person's remotes, in the session and on disk. */
+export function keepRemotes(ctx: CommandContext, answer: { hosts?: string[]; activeHost?: string | null }): void {
+  const user = { ...(ctx.session.user ?? { userId: '', username: '' }), hosts: answer.hosts ?? [], activeHost: answer.activeHost ?? null };
+  saveState({ user });
+  ctx.updateSession({ user });
+}
+
+/** The old name of `remote` / `remote use`. */
+const profile: Command = {
+  name: 'profile',
+  hidden: true,
+  summary: 'Same as remote',
+  usage: 'profile [gitlab|github|local]',
+  run: async (ctx) => {
+    const wanted = ctx.args.find((arg) => !arg.startsWith('-'));
+    return commandNamed(wanted ? 'remote use' : 'remote').run(ctx);
   },
 };
 

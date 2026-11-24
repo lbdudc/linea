@@ -2,11 +2,13 @@ import crypto from 'node:crypto'
 import { Readable } from 'node:stream'
 import { GitLabAuthError, GitLabSession } from 'gitlab-commando'
 import type {
+  DeviceAuthorization, DevicePoll,
   AccessEntry, AuthConfig, Capabilities, ChangeRequest, CiRunners, Comment, CommitSummary, Comparison, Delivery, DiffPosition, FileAction, FileDiff, GitProvider, Id, Issue, IssueChanges, IssueFilter, HostUser, Label, LabelEvent, Member,
   MergeOptions, MergeRequest, MergeRequestChanges, MergeRequestFilter, Milestone, Namespace, Page, Pipeline, PipelineJob, Release, ReleaseChanges, Repository, RepositoryFile, Runner, Template, TemplateKind, Thread, Tokens, PendingDeletion
 } from '../provider.js'
 import { ACCESS } from '../access.js'
 import { readRepositoryTemplates } from '../templates.js'
+import { pollDevice, startDevice } from '../device.js'
 import { createGitLabClient, isBranchAlreadyExistsError, type GitLabClient } from './client.js'
 
 /**
@@ -201,6 +203,14 @@ export class GitLabProvider implements GitProvider {
 
   async exchangeCode({ code, redirectUri }: { code: string, redirectUri: string }): Promise<Tokens> {
     return toTokens(await this.session.requestAccessToken(code, this.config.clientId, this.config.clientSecret, redirectUri))
+  }
+
+  startDeviceAuthorization({ scope = 'api' }: { scope?: string } = {}): Promise<DeviceAuthorization> {
+    return startDevice(`${this.config.url}/oauth/authorize_device`, { client_id: this.config.clientId, scope })
+  }
+
+  pollDeviceAuthorization({ deviceCode, interval }: { deviceCode: string, interval?: number }): Promise<DevicePoll> {
+    return pollDevice(`${this.config.url}/oauth/token`, { device_code: deviceCode, client_id: this.config.clientId, client_secret: this.config.clientSecret }, interval)
   }
 
   async refreshToken({ refreshToken }: { refreshToken: string | null, accessToken: string }): Promise<Tokens> {

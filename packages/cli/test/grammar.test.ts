@@ -98,7 +98,7 @@ describe('linea <command> from a shell', () => {
     expect((await sh('spl', 'show')).out).toMatch(/gis/);
 
     const made = await sh('product', 'new', 'shop');
-    expect(made.err).toBe('');
+    expect(made.err.replace(/^[●◐○] .*\n/, '')).toBe('');
     expect(made.code).toBe(0);
     expect(made.out).toMatch(/Created shop at/);
 
@@ -126,7 +126,7 @@ describe('linea <command> from a shell', () => {
     delete process.env['LINEA_TOKEN'];
     const r = await sh('namespaces');
     expect(r.code).toBe(1);
-    expect(r.err).toMatch(/namespaces needs you signed in: run login/);
+    expect(r.err).toMatch(/namespaces needs the LINEA server, and linea is offline/);
     expect(r.out).toBe('');
   });
 

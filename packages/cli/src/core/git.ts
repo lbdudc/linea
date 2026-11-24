@@ -37,7 +37,7 @@ export interface GitSettings {
 type Env = Record<string, string | undefined>;
 
 /** What a host is called to the person. */
-export const hostLabel = (provider: string | undefined): string => (provider === 'github' ? 'GitHub' : provider === 'local' ? 'LINEA' : 'GitLab');
+export const hostLabel = (provider: string | undefined): string => (provider === 'github' ? 'GitHub' : provider === 'local' ? 'LINEA git' : 'GitLab');
 
 /** The token of the user for the host: what to say to it. `undefined` when none is set. */
 export function gitToken(config: GitConfig, env: Env = process.env): string | undefined {

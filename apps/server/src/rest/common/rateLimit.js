@@ -24,6 +24,21 @@ export const rateLimit = (maxCalls, windowMs) => (req, res, next) => {
   next();
 };
 
+/** Per address, for the routes nobody is signed in to yet (the per-user one lets those through). */
+export const rateLimitByIp = (maxCalls, windowMs) => {
+  const hits = new Map();
+  return (req, res, next) => {
+    const now = Date.now();
+    if (hits.size > 10_000) for (const [ip, entry] of hits) if (now > entry.reset) hits.delete(ip);
+    let entry = hits.get(req.ip);
+    if (!entry || now > entry.reset) entry = { count: 0, reset: now + windowMs };
+    entry.count += 1;
+    hits.set(req.ip, entry);
+    if (entry.count > maxCalls) return res.status(429).json({ error: 'error_messages.too_many_attempts', detail: 'Too many requests. Please wait before retrying.' });
+    next();
+  };
+};
+
 /**
  * Failed sign-ins, counted: after too many for one person from one address, or from one address altogether, the next ones are refused for a
  * while (a password cannot be guessed at the speed of the server). In memory: it starts over with the process, like the sessions do not.

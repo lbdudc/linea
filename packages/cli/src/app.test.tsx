@@ -93,7 +93,7 @@ test('a command that works on folders runs signed out, and the status line says 
   try {
     const t = await testRender(() => <App version="9.9.9" />, { width: 100, height: 30 });
     await t.renderOnce();
-    expect(footer(t.captureCharFrame())).toContain('○ not signed in');
+    expect(footer(t.captureCharFrame())).toContain('○ offline');
 
     await t.mockInput.typeText('spl list --local');
     t.mockInput.pressEnter();
@@ -172,7 +172,7 @@ test('a command that only the server can do says to sign in', async () => {
     await t.renderOnce();
     await t.mockInput.typeText('namespaces');
     t.mockInput.pressEnter();
-    await t.waitForFrame((f) => f.includes('namespaces needs you signed in: run login'));
+    await t.waitForFrame((f) => f.includes('namespaces needs the LINEA server'));
     t.renderer.destroy();
   } finally {
     restore();
@@ -288,7 +288,7 @@ test('startup never touches the network, even with a token stored from an earlie
     const t = await testRender(() => <App version="9.9.9" />, { width: 100, height: 30 });
     await t.renderOnce();
     await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(footer(t.captureCharFrame())).toContain('● alice');
+    expect(footer(t.captureCharFrame())).toContain('signed in as alice');
     expect(fetchCalls).toBe(0);
     t.renderer.destroy();
   } finally {

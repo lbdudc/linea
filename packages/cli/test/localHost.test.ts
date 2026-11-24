@@ -72,7 +72,7 @@ describe('git access to the repositories of LINEA itself', () => {
 
   it('is built from the address the server gave', () => {
     expect(gitConfigOf(local, {}).local?.baseUrl).toBe('https://linea.example.com/git');
-    expect(hostLabel('local')).toBe('LINEA');
+    expect(hostLabel('local')).toBe('LINEA git');
     expect(hostLabel('github')).toBe('GitHub');
     expect(hostLabel('gitlab')).toBe('GitLab');
   });
@@ -100,6 +100,7 @@ describe('login with an account', () => {
       asked.push(`${init?.method ?? 'GET'} ${path_} ${init?.body ?? ''}`);
       if (path_ === '/api/users/config') return new Response(JSON.stringify({ provider: 'local', primary: 'local', hosts: [{ id: 'local' }] }), { status: 200 });
       if (path_ === '/api/users/login/local') return new Response(JSON.stringify({ token: 'jwt', user: { userId: 'u1', username: 'ana' } }), { status: 200 });
+      if (path_ === '/api/users/login/local/token') return new Response(JSON.stringify({ token: 'jwt2', user: { userId: 'u1', username: 'ana' } }), { status: 200 });
       if (path_ === '/api/users/git-credentials') return new Response(JSON.stringify({ provider: 'local', host: { url: 'https://linea.example.com/git' }, username: 'ana', token: 'b'.repeat(64) }), { status: 200 });
       return new Response('{}', { status: 404 });
     }) as never;
@@ -108,7 +109,9 @@ describe('login with an account', () => {
       expect(await login.run(ctx(['--host', 'local', '--username', 'ana', '--password', 'long-enough']))).toContain('Signed in as ana');
       expect(asked.some((line) => line.includes('/api/users/login/local') && line.includes('"password":"long-enough"'))).toBe(true);
       expect(storedGit()?.provider).toBe('local');
-      await expect(login.run(ctx(['--host', 'local', '--token', 'abc']))).rejects.toThrow(/personal token is for GitLab or GitHub/);
+      // the git token of a LINEA git account is a way in as well (and never both with a password)
+      expect(await login.run(ctx(['--host', 'local', '--token', 'abc']))).toContain('Signed in as ana');
+      expect(asked.some((line) => line.includes('/api/users/login/local/token') && line.includes('"token":"abc"'))).toBe(true);
     } finally {
       globalThis.fetch = realFetch;
     }

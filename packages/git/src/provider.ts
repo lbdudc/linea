@@ -418,6 +418,23 @@ export interface Tokens {
   refreshToken: string | null
 }
 
+/** What the person is shown to approve a sign-in from a machine with no browser (the OAuth device authorization grant). */
+export interface DeviceAuthorization {
+  /** Kept by the client and given back to poll; useless without the host's OAuth app secret on confidential apps. */
+  deviceCode: string
+  userCode: string
+  verificationUri: string
+  verificationUriComplete?: string | undefined
+  /** Seconds the codes last. */
+  expiresIn: number
+  /** Seconds to wait between polls. */
+  interval: number
+}
+
+export type DevicePoll =
+  | { status: 'pending', interval: number }
+  | { status: 'done', tokens: Tokens }
+
 export interface AuthConfig {
   kind: GitHostKind
   clientId: string | undefined
@@ -450,6 +467,12 @@ export interface GitProvider {
   /** Keeps `accessToken` when the host's tokens do not expire. */
   refreshToken(args: { refreshToken: string | null, accessToken: string }): Promise<Tokens>
   getUser(args: { token: string }): Promise<{ username: string, avatarUrl: string }>
+  /**
+   * Device authorization: for hosts that have it (GitLab, GitHub), not part of GIT_PROVIDER_METHODS. Rejects with `GitDeviceFlowError`
+   * (`unsupported` when the host has no such flow); polling rejects with `expired_token` / `access_denied` when it cannot go on.
+   */
+  startDeviceAuthorization?(args?: { scope?: string }): Promise<DeviceAuthorization>
+  pollDeviceAuthorization?(args: { deviceCode: string, interval?: number }): Promise<DevicePoll>
 
   // Namespaces: the place repositories live in
   /** Where the user may create things. */

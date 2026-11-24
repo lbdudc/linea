@@ -95,6 +95,29 @@ export const loginFromGitLabNativeValidator = [
 ];
 
 
+export const tokenLoginValidator = [
+    body('token').isString().withMessage('error_messages.incorrect_credentials')
+        .trim().notEmpty().withMessage('error_messages.incorrect_credentials')
+        .isLength({ max: 512 }).withMessage('error_messages.incorrect_credentials'),
+    handleValidationErrors
+];
+
+export const deviceCodeValidator = [
+    body('device_code').isString().withMessage('error_messages.code_validation')
+        .notEmpty().withMessage('error_messages.code_validation')
+        .isLength({ max: 512 }).withMessage('error_messages.code_validation'),
+    body('interval').optional().isInt({ min: 1, max: 60 }).withMessage('error_messages.code_validation'),
+    handleValidationErrors
+];
+
+// a native link has no `host` in the body (it is in the path)
+export const linkNativeValidator = [
+    body('code').isString().withMessage('error_messages.code_validation').notEmpty().withMessage('error_messages.code_validation'),
+    body('redirect_uri').isString().withMessage('error_messages.redirect_uri_validation')
+        .custom(isAllowedNativeRedirectUri).withMessage('error_messages.redirect_uri_validation'),
+    handleValidationErrors
+];
+
 // the profile is one of the hosts that are on
 export const profileValidator = [
     body('host').isString().custom((value) => enabledHosts().includes(value)).withMessage('error_messages.git_host_validation'),

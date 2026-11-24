@@ -36,6 +36,7 @@ import { whyNoAccess } from '../core/credentialHelper.js';
 import { defaultDataDir, displayPath, resolvePath } from '../core/workdir.js';
 import type { SplalmLine, SplalmLineSummary, SplalmProductSummary } from '../core/types.js';
 import { commandNamed } from './lookup.js';
+import { needsServerText, online } from '../core/mode.js';
 import type { Command, Session } from './types.js';
 import { excludeFromGit } from '../core/editor.js';
 import { resolveNamed } from './util.js';
@@ -90,7 +91,7 @@ const clone: Command = {
     const { positional, flags } = parseFlags(args, { value: { products: undefined, dir: undefined } });
     const target = positional[0];
     if (!target) return 'Usage: clone <spl>[:product] [--products all|none|a,b] [--dir folder]';
-    if (!session.authed) throw new Error('Sign in first: login (it asks the server where your SPLs are).');
+    if (!online(session)) throw new Error(needsServerText('get <spl>', session));
 
     const [lineArg, productArg] = target.split(':') as [string, string | undefined];
     setStatus('asking LINEA for your SPLs…');
@@ -307,8 +308,8 @@ const push: Command = {
     // an SPL made here that LINEA does not have yet: sending it is what puts it there
     const here = findContext(session.cwd ?? process.cwd());
     if (here.line && !isRepo(here.line.dir)) {
-      if (!session.authed || session.local) {
-        return `${path.basename(here.line.dir)} is only on this machine. Sign in (login) and push uploads it to LINEA.`;
+      if (!online(session)) {
+        return `${path.basename(here.line.dir)} is only on this machine. In server mode (mode server, then login), push uploads it to LINEA.`;
       }
       return link.run(ctx);
     }
@@ -375,7 +376,7 @@ const link: Command = {
   flags: ['--desc text', '--namespace id'],
   run: async ({ args, session, setStatus }) => {
     const { flags } = parseFlags(args, { value: { desc: undefined, namespace: undefined } });
-    if (!session.authed) throw new Error('Sign in first: login.');
+    if (!online(session)) throw new Error(needsServerText('link', session));
     const folder = findContext(session.cwd ?? process.cwd());
     const lineDir = folder.line?.dir;
     if (!lineDir) throw new Error('Run it inside the SPL you made here.');

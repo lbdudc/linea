@@ -1,7 +1,8 @@
 import { handleApiError } from '../core/client.js';
 import type { FolderContext } from '../core/context.js';
 import { resolveCommand } from './registry.js';
-import type { CommandContext, Session } from './types.js';
+import { contextLine, modeOf, needsServerText, online } from '../core/mode.js';
+import type { Command, CommandContext, Session } from './types.js';
 
 export type Hooks = Pick<CommandContext, 'updateSession' | 'setStatus' | 'print' | 'clear' | 'exit' | 'dialog'>;
 
@@ -13,12 +14,31 @@ export interface Outcome {
   error?: true;
   data?: unknown;
   json: boolean;
+  /** where the command worked, for commands of the server (see `contextLine`) */
+  context?: string;
 }
 
 /** The words with the global flags taken out, and which of them were there. */
-export function splitGlobals(tokens: readonly string[]): { rest: string[]; json: boolean; local: boolean } {
-  return { rest: tokens.filter((t) => t !== '--json' && t !== '--local'), json: tokens.includes('--json'), local: tokens.includes('--local') };
+export function splitGlobals(tokens: readonly string[]): { rest: string[]; json: boolean; offline: boolean } {
+  // `--local` is what `--offline` was called: it still works, and the server's own `local` host is not confused with it
+  const words = ['--json', '--offline', '--local'];
+  return { rest: tokens.filter((t) => !words.includes(t)), json: tokens.includes('--json'), offline: tokens.includes('--offline') || tokens.includes('--local') };
 }
+
+/**
+ * Whether the command may run in the mode the session is in: a command of the server does not run offline, and one that has both
+ * sides does not guess when the server is wanted but there is no sign-in (it never quietly does the other thing).
+ */
+export function gate(cmd: Command, session: Session): string | undefined {
+  const where = cmd.where ?? (cmd.requiresAuth ? 'server' : 'machine');
+  if (where === 'machine') return undefined;
+  if (online(session)) return undefined;
+  if (where === 'both' && modeOf(session) === 'offline') return undefined;
+  return needsServerText(cmd.name, session);
+}
+
+/** Commands that say where they are working: the line is printed before them (to stderr, so what a program reads is untouched). */
+export const showsContext = (cmd: Command): boolean => (cmd.where ?? (cmd.requiresAuth ? 'server' : 'machine')) !== 'machine';
 
 const firstPositional = (args: readonly string[]): string | undefined => args.find((a) => !a.startsWith('-'));
 
@@ -31,17 +51,16 @@ export async function execute(opts: {
   /** gives the command up (see `cancellable`) */
   signal?: AbortSignal;
 }): Promise<Outcome> {
-  const { rest, json, local } = splitGlobals(opts.tokens);
-  const session: Session = { ...opts.session, ...(json ? { json } : {}), ...(local ? { local } : {}) };
+  const { rest, json, offline } = splitGlobals(opts.tokens);
+  const session: Session = { ...opts.session, ...(json ? { json } : {}), ...(offline ? { mode: 'offline', modeOverride: true } : {}) };
 
   const resolved = resolveCommand(rest);
   if ('error' in resolved) return { code: 2, text: resolved.error, error: true, json };
   const { cmd } = resolved;
   let { args } = resolved;
 
-  if (cmd.requiresAuth && !session.authed) {
-    return { code: 1, text: `${cmd.name} needs you signed in: run login`, error: true, json };
-  }
+  const refused = gate(cmd, session);
+  if (refused) return { code: 1, text: refused, error: true, json, context: contextLine(session) };
 
   // standing in a product, the product is the one meant
   if (cmd.arg === 'product' && opts.folder?.product && !firstPositional(args)) args = [opts.folder.product.name, ...args];
@@ -71,6 +90,7 @@ export async function execute(opts: {
     return {
       code: usage ? 2 : failed ? 1 : 0,
       text,
+      ...(showsContext(cmd) ? { context: contextLine(ctx.session) } : {}),
       ...(usage ? { error: true as const } : {}),
       ...(data !== undefined ? { data } : {}),
       json,

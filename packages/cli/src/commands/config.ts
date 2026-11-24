@@ -1,7 +1,7 @@
-import { configureClient } from '../core/client.js';
 import { findEditor } from '../core/editor.js';
 import { defaultDataDir, ensureDir } from '../core/workdir.js';
 import { DEFAULT_THEME, findTheme, resolveTheme, THEMES } from '../ui/themes.js';
+import { commandNamed } from './lookup.js';
 import type { Command } from './types.js';
 
 const KEYS = ['workspace', 'editor', 'server', 'theme'] as const;
@@ -13,7 +13,8 @@ const config: Command = {
   summary: 'Show the settings, or set one: workspace, editor, server, theme',
   usage: 'config [workspace|editor|server|theme] [value]   (config <folder> still sets the workspace)',
   arg: 'file',
-  run: ({ args, session, updateSession }) => {
+  run: (ctx) => {
+    const { args, session, updateSession } = ctx;
     const [first, value] = args.filter((a) => !a.startsWith('--'));
     const unset = args.includes('--unset');
 
@@ -31,6 +32,7 @@ const config: Command = {
         `  editor     ${session.editor ?? '(automatic)'}  → ${editor}`,
         `  server     ${session.baseUrl}`,
         `  theme      ${resolveTheme(process.env['LINEA_THEME'], session.theme).name}   the colours of the window (config theme lists them)`,
+        `  mode       ${session.mode ?? (session.authed ? 'server' : 'offline')}   (mode server|offline)`,
         `  signed in  ${session.authed ? (session.user?.username ?? 'yes') : 'no'}`,
         '',
         'Change one with: config <setting> <value>   (config editor --unset goes back to automatic).',
@@ -78,12 +80,8 @@ const config: Command = {
         return `✓ Theme set to ${found.name}. It applies the next time you open linea.`;
       }
       case 'server': {
-        if (!given) return `server: ${session.baseUrl}`;
-        if (!/^https?:\/\//.test(given)) throw new Error('The server is an address: http://… or https://…');
-        const baseUrl = given.replace(/\/+$/, '');
-        configureClient({ baseUrl });
-        updateSession({ baseUrl });
-        return `✓ Server set to ${given}. Sign in again with: login`;
+        // the server has its own command now (it signs you out, so it asks for --yes)
+        return commandNamed('server').run({ ...ctx, args: given ? [given, ...args.filter((a) => a === '--yes')] : [] });
       }
     }
   },

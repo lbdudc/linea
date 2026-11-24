@@ -87,6 +87,21 @@ export const HOST_SCHEMAS = {
       "gl": "Onde GitLab devolve o navegador co código; debe ser a rexistrada na aplicación OAuth. Baleiro: o enderezo desta LINEA + /login."
     }
   },
+  "deviceFlow": {
+    "type": "boolean",
+    "default": true,
+    "public": true,
+    "label": {
+      "en": "Sign in from a terminal with a code (device flow)",
+      "es": "Entrar desde una terminal con un código (flujo de dispositivo)",
+      "gl": "Entrar desde un terminal cun código (fluxo de dispositivo)"
+    },
+    "description": {
+      "en": "For machines with no browser. GitLab needs it to be allowed in the OAuth application.",
+      "es": "Para máquinas sin navegador. GitLab necesita que esté permitido en la aplicación OAuth.",
+      "gl": "Para máquinas sen navegador. GitLab necesita que estea permitido na aplicación OAuth."
+    }
+  },
   "defaultNamespace": {
     "type": "string",
     "default": "linea/spls",
@@ -189,6 +204,21 @@ export const HOST_SCHEMAS = {
       "en": "Where GitHub sends the browser back with the code; it must be the one registered in the OAuth application. Empty: this LINEA's address + /login.",
       "es": "Adonde GitHub devuelve el navegador con el código; debe ser la registrada en la aplicación OAuth. Vacío: la dirección de esta LINEA + /login.",
       "gl": "Onde GitHub devolve o navegador co código; debe ser a rexistrada na aplicación OAuth. Baleiro: o enderezo desta LINEA + /login."
+    }
+  },
+  "deviceFlow": {
+    "type": "boolean",
+    "default": true,
+    "public": true,
+    "label": {
+      "en": "Sign in from a terminal with a code (device flow)",
+      "es": "Entrar desde una terminal con un código (flujo de dispositivo)",
+      "gl": "Entrar desde un terminal cun código (fluxo de dispositivo)"
+    },
+    "description": {
+      "en": "For machines with no browser. GitHub needs it to be allowed in the OAuth application.",
+      "es": "Para máquinas sin navegador. GitHub necesita que esté permitido en la aplicación OAuth.",
+      "gl": "Para máquinas sen navegador. GitHub necesita que estea permitido na aplicación OAuth."
     }
   },
   "defaultNamespace": {

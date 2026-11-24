@@ -125,6 +125,48 @@ export default class UserController {
     res.status(204).send();
   });
 
+  // a token of the host (a personal access token, or the git token of a LINEA account) as a way in, for people who have signed in before
+  loginWithToken = asyncHandler(async (req, res) => {
+    const attempt = { ip: req.ip, key: `token:${req.params.host}` };
+    const blocked = signInLimiter.blocked(attempt);
+    if (blocked) throw new TooManyAttemptsError(blocked);
+    let userData;
+    try {
+      userData = await this.userService.loginWithToken({ host: req.params.host, token: req.body.token });
+    } catch (error) {
+      if (error instanceof IncorrectCredentialsError) signInLimiter.fail(attempt);
+      throw error;
+    }
+    signInLimiter.reset(attempt);
+    record({ userId: userData._id, action: 'auth.signin', detail: { method: 'token', host: req.params.host }, ip: req.ip });
+    await this.#issueSession(userData, res, { req });
+    this.#warmUp(userData._id);
+  });
+
+  startDevice = asyncHandler(async (req, res) => {
+    const auth = await this.userService.startDeviceAuthorization({ host: req.params.host });
+    res.status(200).send(auth);
+  });
+
+  // 202 while the person has not approved yet; then a session, like any other sign-in
+  loginWithDevice = asyncHandler(async (req, res) => {
+    const poll = await this.userService.pollDeviceAuthorization({ host: req.params.host, deviceCode: req.body.device_code, interval: req.body.interval });
+    if (poll.status === 'pending') return res.status(202).send(poll);
+    await this.#issueSession(poll.user, res, { req });
+    this.#warmUp(poll.user._id);
+  });
+
+  linkIdentityNative = asyncHandler(async (req, res) => {
+    const user = await this.userService.linkIdentity({ userId: req.userId, host: req.params.host, code: req.body.code, redirectUri: req.body.redirect_uri });
+    res.status(200).send({ hosts: hostsOf(user), activeHost: usableActiveHost(user) });
+  });
+
+  linkIdentityDevice = asyncHandler(async (req, res) => {
+    const poll = await this.userService.pollDeviceAuthorization({ host: req.params.host, deviceCode: req.body.device_code, interval: req.body.interval, linkUserId: req.userId });
+    if (poll.status === 'pending') return res.status(202).send(poll);
+    res.status(200).send({ hosts: hostsOf(poll.user), activeHost: usableActiveHost(poll.user) });
+  });
+
   loginUserFromGitLab = asyncHandler(async (req, res) => {
     const userData = await this.userService.loginUserFromGitLab({ code: req.body.code, host: req.params.host });
     await this.#issueSession(userData, res, { req });

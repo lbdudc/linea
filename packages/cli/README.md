@@ -35,7 +35,7 @@ From a checkout of [lbdudc/linea](https://github.com/lbdudc/linea): `npm install
 | **configure products** | `product new shop --features A,B` → `product show shop` → `open shop:datamodel` → `check shop` → `generate shop` |
 | **write modules or metamodels** | `module new auth` → edit → `check auth` → `module publish auth --bump minor --to my-group`; to change one that exists: `get github:acme/auth` |
 | **use LINEA from CI** | `linea --json check` (exit code 1 when something does not fit) |
-| **start on your laptop** | `spl new gis --local` → `module list --remote` → `spl add github:acme/auth` → `push` (uploads it to LINEA when you are ready) |
+| **start on your laptop** | `mode offline` → `spl new gis` → `module list --remote` → `spl add github:acme/auth` → (later) `mode server`, `login`, `push` uploads it to LINEA |
 
 ## Where you are decides what is meant
 
@@ -58,16 +58,49 @@ for. `linea config workspace <folder>` sets the default one; standing in a works
 - **`push`** sends things up: it checks, commits, pushes a branch and opens the merge/pull request. If the SPL was made here and LINEA
   does not have it yet, `push` uploads it first.
 
-And what you create goes where you are working: signed in, `spl new` makes the SPL **on LINEA and brings it to your folder**, and
-`product new`, inside an SPL that is on LINEA, makes the product there and brings it into the SPL's folder. `--local` makes it only
-here (`push` will upload it later). `spl list` shows both sides in one list: *here + LINEA*, *here only*, *LINEA only*.
-
-There is no mode to think about: a command acts on the folder you are in, and goes to LINEA only when it has to (`get`, `push`, `spl list`,
-`spl new`, `product new`, `generate --remote`, and the few commands that only exist there: `product logs`, `product conflicts`,
-`reconcile`, `namespaces`). `--local` means "do not talk to the server" for one command.
+And what you create goes where you are working: in **server mode**, signed in, `spl new` makes the SPL **on LINEA and brings it to your
+folder**, and `product new`, inside an SPL that is on LINEA, makes the product there and brings it into the SPL's folder. **Offline**
+it is made only here (`push` uploads it later). `spl list` shows both sides in one list: *here + LINEA*, *here only*, *LINEA only*.
 
 Changing something that LINEA has is always the same loop: `get` it, change it in your folder, `push` it. That is why there is no
 `rename`, `delete` or `update` of things on the server from here: do those in the web interface, and `get` the result.
+
+## Two modes: server and offline
+
+linea is always in one of two modes, and it tells you which wherever you look:
+
+| Mode | What it means | Shown as |
+|---|---|---|
+| **server** | works with the LINEA server and the remotes it has: your SPLs there, `push`, pipelines, `spl new` on LINEA | `● server linea.example.org · GitLab as ana` |
+| **offline** | this machine only: SPLs in folders, `generate` here, nothing asks the server | `○ offline · this machine only` |
+
+`◐ server … · not signed in` means the server is wanted but there is no sign-in (`login`), and `◐ … session expired` that it has to be
+renewed (`login` again). That line is the status bar of the window, the top of the welcome, and what a command that talks to the server
+prints on stderr before it runs (never with `--json`, and never on stdout, so scripts read the same output as before).
+
+- `mode` shows it; `mode server` / `mode offline` choose it (kept between runs). `login` makes it `server` and says so.
+- `--offline` makes one command offline (`--local` still works, and is the same). `LINEA_MODE=server|offline` does it for one run.
+- **linea never switches by itself.** A command that needs the server says so offline (`✗ product logs needs the LINEA server, and linea
+  is offline … Switch: mode server`); in server mode with no sign-in, `spl list`, `spl new` and `product new` refuse and say `login`
+  (or `--offline`) instead of quietly doing the local thing. If the server cannot be reached, it says so and suggests `mode offline`.
+- Commands about folders (`check`, `fm`, `generate`, `open`, `product list`…) work in both modes.
+
+(The word *local* is the **server's** own git host, shown as **LINEA git**; the CLI's no-server state is *offline*.)
+
+## One server, several remotes
+
+A LINEA server connects to **remotes** (git hosts): its own git (**LINEA git**, `local`), **GitLab** and **GitHub**, any of them on. You
+point linea at one server (`server <url>`; `server` shows it and the remotes it has; changing it signs you out, so it asks for `--yes`).
+
+| Command | What it does |
+|---|---|
+| `remote` | the remotes of the server, the one you work on (`●`), your account on each, and how to sign in with each |
+| `remote use <name>` | work on another remote. The server keeps the choice for your account, so **the web page follows** (and the other way round: `whoami` asks again) |
+| `remote link <name> [--device]` | add your account on another remote (browser, or a code on a machine with no browser). LINEA git accounts cannot be linked: they sign in with a password |
+| `remote unlink <name>` | forget an account (not the one you sign in with) |
+| `whoami` | mode, server, who you are, the remote you work on, the accounts you have, and where git access comes from |
+
+Lists, new SPLs and products, and the git access (`get`, `push`) are always of the remote you work on.
 
 ## Configuration
 
@@ -89,15 +122,22 @@ Bun reads a `.env` in the folder you start from; `bun --no-env-file` ignores it.
 
 ## Signing in
 
-`linea login` opens your browser on the git host (the same OAuth the web interface uses), and when it comes back the CLI has
-**both** things it needs: a session on the LINEA server, and your own access to the git host, which the server hands over once
-(`/api/users/git-credentials`). Nothing else is to be set up.
+`login [remote]` signs in to the server **through** one of its remotes (the primary one when you do not say; `remote` lists them):
 
-If your LINEA server is older and gives no git access (`whoami` shows `git access: none`), or you would rather use your own, give a
-**personal access token** for your git host (GitLab: scope `api`; GitHub: `repo`): `linea login --token <token or path of a file
-holding it>`. The host is the one the server says it is on; it is asked whether it accepts the token before it is kept, the token is
-never printed, and it is kept over whatever the server says later. Git access belongs to the server it came from: switching servers
-(`config server …`) leaves the other's behind, and `doctor` says where the access in use comes from.
+| How | Command | For |
+|---|---|---|
+| browser | `login gitlab` (or `github`) | the usual one: opens your browser on the remote (loopback `http://127.0.0.1:53682/callback`; `LINEA_OAUTH_PORT` changes the port, and the OAuth application has to accept it) |
+| code | `login gitlab --device` | a machine with no browser (SSH, a container): it shows an address and a code, you approve on another screen |
+| token | `login gitlab --token <token or file>` | a personal access token of the remote (GitLab: `api`; GitHub: `repo`), **for someone who has signed in to LINEA once before** (a token never makes a new account). Also kept as your git access for that remote |
+| password | `login local --username ana --password <password or file>` | LINEA git accounts (`LINEA_PASSWORD` works too); `login local --token <git token>` uses the account's git token |
+
+When it comes back the CLI has **both** things it needs: a session on the LINEA server, and your own access to the git host, which the
+server hands over once (`/api/users/git-credentials`). `--device` and the server-side `--token` need a server that has them (`remote`
+lists `code` and `token` per remote); an older one answers with a clear message, and `login --token` still gives git access there.
+
+A **personal token** is kept **per remote** and over whatever the server says later, so `remote use` back to that remote gives it again.
+It is never printed. Git access belongs to the server it came from: `server <other-url>` leaves the other's behind, and `doctor` says
+where the access in use comes from.
 
 The access is also what `git` uses: a clone is configured with `linea` as its credential helper for that host, so a plain `git push`
 or `git pull` inside it works too, and no token is written into any repository.
@@ -127,20 +167,20 @@ Anything marked `local` or `cloud` works only there.
 | `open [what] [--editor name] [--print]` | the SPL (as a VS Code workspace with its modules), a product, `shop:datamodel`, `fm`, a module, a path |
 | `open --web`, `open --repo` | the same thing in the LINEA web interface, or on the GitLab/GitHub page |
 
-Some commands were folded into others and no longer appear in `help`, but still work: `clone`, `pull` and `link` are `get` and `push`; `web` and `repo` are `open --web` and `--repo`; `spl modules` is in `spl show`; `product models` and `product conflicts` are in `product show`; `fm edit` is `open fm`; `module clone` is `get gitlab:group/project`.
+Some commands were folded into others and no longer appear in `help`: `clone`, `pull` and `link` are used by `get` and `push` (they are not commands of their own); `web` and `repo` are `open --web` and `--repo`; `profile` is `remote`; `spl modules` is in `spl show`; `product models` and `product conflicts` are in `product show`; `fm edit` is `open fm`; `module clone` is `get gitlab:group/project`. (`fm convert` no longer exists.)
 
 ### SPLs, the feature model and products
 
 | | |
 |---|---|
 | `spl list`, `spl show [spl]` | your SPLs, here and on LINEA in one list, coloured by where each is (green: here and on LINEA, yellow: only here, cyan: only on LINEA); what one is made of (for one of modules: the modules it names and what they bring in), its products, and whether LINEA has it |
-| `spl new <name> [--modules gitlab:g/m,…] [--plain] [--local]` | made of modules by default; `--plain` is the classic kind (a feature model and nothing else: the data model and the sensors are metamodels of modules). Signed in it is made on LINEA and comes to your folder; `--local` keeps it here |
+| `spl new <name> [--modules gitlab:g/m,…] [--plain] [--offline]` | made of modules by default; `--plain` is the classic kind (a feature model and nothing else: the data model and the sensors are metamodels of modules). In server mode, signed in, it is made on LINEA (on the remote you work on) and comes to your folder; offline (or `--offline`) it is made here |
 | `spl add <module> [range]`, `spl remove <module>` | choose the modules; what they need comes with them |
 | `spl update [module]` | take the newest versions the ranges allow and pin them in `linea.lock.json` |
 | `spl delete <spl> --yes` | delete it from this machine (irreversible, products included); LINEA keeps its own copy |
 | `check [product\|module\|metamodel]` | an SPL (its modules fit), a product (its models and features fit) or a package, by what you name or where you are |
 | `fm show\|convert\|analyze\|metric` | the feature model (to change it: `open fm`) |
-| `product new <name> [--features A,B] [--from spec.json] [--local]` | a product; in an SPL that is on LINEA it is made there and comes into the folder. For an SPL of modules it starts with a model of each metamodel it needs |
+| `product new <name> [--features A,B] [--from spec.json] [--offline]` | a product; in an SPL that is on LINEA it is made there and comes into the folder. For an SPL of modules it starts with a model of each metamodel it needs |
 | `product list\|show\|rename\|delete` | the products of the SPL you are in (here, on this machine); `show` has its features, its models and what is missing, and the merge requests LINEA knows of |
 | `product features <product> [--add A,B] [--remove C]` | the features a product selects |
 | `generate [product] [--preview [dir]] [--zip [file]] [--remote [--bump patch\|minor\|major] [--no-wait]]` | derive it here, into the product's folder (then `push`); `--preview` and `--zip` leave it alone; `--remote` has LINEA derive it, open its merge requests and follow its pipeline (`--no-wait` does not) |
@@ -170,7 +210,7 @@ Some commands were folded into others and no longer appear in `help`, but still 
 
 ## Scripts and CI
 
-- `--json` prints data instead of text (`status`, `check`, `module list`, `doctor`…); `--local` says no server.
+- `--json` prints data instead of text (`status`, `check`, `module list`, `doctor`…); `--offline` says no server for one command (`LINEA_MODE=offline` for the whole run). The line that says where a command of the server worked goes to stderr.
 - The exit code is `0` when it worked, `1` when it did not or a check found problems, `2` when the command was used wrong.
 - Normal output goes to stdout, errors and notes to stderr.
 

@@ -51,7 +51,7 @@ function fakeFetch(routes: Record<string, Route>) {
 }
 
 function makeSession(overrides: Partial<Session> = {}): Session {
-  return { baseUrl: BASE, authed: false, mode: 'cloud', ...overrides };
+  return { baseUrl: BASE, authed: false, ...overrides };
 }
 function makeCtx(session: Session, args: string[] = []): CommandContext & { printed: string[] } {
   const printed: string[] = [];
@@ -157,7 +157,7 @@ describe('/login — full loopback round trip', () => {
     expect(callback.status).toBe(200);
 
     const out = await runPromise;
-    expect(out).toBe('✓ Signed in as alice.');
+    expect(out).toContain('✓ Signed in as alice');
     expect(session.authed).toBe(true);
     expect(session.user?.username).toBe('alice');
 

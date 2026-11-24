@@ -55,6 +55,13 @@ const codeErrorHandlers = {
     LAST_ADMIN: (res, err) => {
       res.status(409).json({ error: 'error_messages.last_admin', detail: err.message });
     },
+    NO_LINEA_ACCOUNT: (res, err) => {
+      res.status(403).json({ error: 'error_messages.no_linea_account', detail: err.message, host: err.host });
+    },
+    DEVICE_FLOW: (res, err) => {
+      const [status, key] = { unavailable: [400, 'device_flow_unavailable'], disabled: [409, 'device_flow_disabled'], expired: [410, 'device_code_expired'], denied: [403, 'device_access_denied'] }[err.reason] ?? [400, 'device_flow_unavailable'];
+      res.status(status).json({ error: `error_messages.${key}`, detail: err.message, reason: err.reason });
+    },
     GIT_HOST_IS_OWN: (res, err) => {
       res.status(409).json({ error: 'error_messages.git_host_is_own', detail: err.message });
     },

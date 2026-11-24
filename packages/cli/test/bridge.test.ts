@@ -124,7 +124,7 @@ describe('clone', () => {
   it('clones the SPL and its products as repositories, and remembers where they came from', async () => {
     publishLine();
     const r = await sh('get', 'gis');
-    expect(r.err).toBe('');
+    expect(r.err.replace(/^[●◐○] .*\n/, '')).toBe('');
     expect(r.code).toBe(0);
     expect(r.out).toMatch(/✓ gis/);
     expect(r.out).toMatch(/✓ shop .*\(product\)/);
@@ -207,7 +207,7 @@ describe('status, push and pull', () => {
     } as never);
     try {
       const pushed = await sh('push', '-m', 'Add an extra feature');
-      expect(pushed.err).toBe('');
+      expect(pushed.err.replace(/^[●◐○] .*\n/, '')).toBe('');
       expect(pushed.code).toBe(0);
       expect(pushed.out).toMatch(/✓ gis: pushed linea\/ana\/add-an-extra-feature-\d+ → http:\/\/gitlab\.test\/g\/gis\/-\/merge_requests\/7/);
 
@@ -359,7 +359,7 @@ describe('link', () => {
     expect((await sh('product', 'new', 'local-product')).code).toBe(0);
 
     const r = await sh('push');
-    expect(r.err).toBe('');
+    expect(r.err.replace(/^[●◐○] .*\n/, '')).toBe('');
     expect(r.code).toBe(0);
     expect(r.out).toMatch(/✓ mine is on LINEA/);
     expect(r.out).toMatch(/products stay here/);
@@ -400,7 +400,7 @@ describe('one step each way', () => {
     server['/api/users/config'] = { primary: 'gitlab', hosts: [{ id: 'gitlab', redirectUri: 'http://localhost:9000/login' }] };
 
     const r = await sh('spl', 'new', 'fresh', '--modules', 'gitlab:registry/modules/draw');
-    expect(r.err).toBe('');
+    expect(r.err.replace(/^[●◐○] .*\n/, '')).toBe('');
     expect(r.code).toBe(0);
     // one command: it was made on LINEA (a modular SPL, with the module asked for), and it is here as a clone
     const created = requests.find((q) => q.method === 'POST' && q.path === '/api/lines')!;
@@ -459,7 +459,7 @@ describe('one step each way', () => {
     const made = remote('web', { '.linea/spec.json': '{"basicData":{"name":"web","version":"0.0.0"},"features":["Gis"]}' });
     server['/api/products'] = { _id: 'prod9', spec: { basicData: { name: 'web', version: '0.0.0' }, features: ['Gis'] }, repo: { id: 33, webUrl: made.webUrl } };
     const r = await sh('product', 'new', 'web', '--features', 'Gis');
-    expect(r.err).toBe('');
+    expect(r.err.replace(/^[●◐○] .*\n/, '')).toBe('');
     expect(r.out).toMatch(/✓ Created web on LINEA, and it is here/);
     expect(requests.find((q) => q.method === 'POST' && q.path === '/api/products')!.body).toMatchObject({ lineId: 'line1', spec: { basicData: { name: 'web' }, features: ['Gis'] } });
     expect(readOrigin(path.join(lineDir, 'web'))).toMatchObject({ kind: 'product', productId: 'prod9', projectId: 33 });

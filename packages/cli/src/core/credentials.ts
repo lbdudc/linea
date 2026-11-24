@@ -22,11 +22,20 @@ export interface StoredGit {
   token: string;
 }
 
+/** What the CLI is for: the LINEA server, or only this machine. Explicit and kept, so what you see is what is in force. */
+export type Mode = 'server' | 'offline';
+export type HostId = 'local' | 'gitlab' | 'github';
+
 export interface StoredState {
+  /** `server`: commands that have a server side use it · `offline`: this machine only (see `mode`). Absent in files from before: see `resolveMode`. */
+  mode?: Mode;
   git?: StoredGit;
+  /** the personal access tokens the user gave, one per host: they stay when the remote changes (`git` is the one of the remote in use) */
+  personal?: Partial<Record<HostId, StoredGit>>;
   baseUrl?: string;
   token?: string;
-  user?: { userId: string; username: string };
+  /** who signed in, and the remotes they have on the server (a copy of what the server said, for the status line: `whoami` asks again) */
+  user?: { userId: string; username: string; hosts?: string[]; activeHost?: string | null };
   workdir?: string;
   /** the editor `open` uses (a command name, `code`); otherwise $VISUAL, $EDITOR or the first VS Code-like one found */
   editor?: string;
@@ -79,7 +88,18 @@ export function saveState(patch: Partial<StoredState>): StoredState {
   return next;
 }
 
+/**
+ * The mode in force: `LINEA_MODE`, else what was kept, else (files from before there was a mode) server when there was a sign-in and
+ * offline when there was not, so that nobody's way of working changes under them.
+ */
+export function resolveMode(state: StoredState = loadState()): Mode {
+  const asked = process.env['LINEA_MODE'];
+  if (asked === 'server' || asked === 'offline') return asked;
+  return state.mode ?? (state.token || config.DEV_TOKEN ? 'server' : 'offline');
+}
+
+/** Signing out keeps the mode, the server and the settings; it drops the sign-in and every git access that came with it. */
 export function clearAuth(): void {
-  const { baseUrl, workdir, editor, theme, layout } = loadState();
-  write({ baseUrl, workdir, editor, theme, layout });
+  const { mode, baseUrl, workdir, editor, theme, layout } = loadState();
+  write({ ...(mode ? { mode } : {}), baseUrl, workdir, editor, theme, layout });
 }

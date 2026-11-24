@@ -22,7 +22,7 @@ describe('command registry', () => {
 
   it('has no modes and no old names: a command acts on the folder you are in, and on LINEA when it says so', () => {
     for (const c of allCommands()) expect(c).not.toHaveProperty('modes');
-    for (const old of ['lines', 'use', 'newline', 'create', 'model', 'products', 'zip', 'health', 'ask', 'agents', 'run', 'mode', 'clone', 'pull', 'link', 'web', 'repo', 'remote']) {
+    for (const old of ['lines', 'use', 'newline', 'create', 'model', 'products', 'zip', 'health', 'ask', 'agents', 'run', 'clone', 'pull', 'link', 'web', 'repo']) {
       expect(getCommand(old)).toBeUndefined();
     }
   });
