@@ -334,7 +334,17 @@ export default class LineService {
       const existingByName = await this.lineRepository.findByName(project.name);
       if (existingByName && hostOf(existingByName) !== host) {
         console.warn(`[findEnrolledLines] "${project.name}" on ${host} is left out: a line of that name is on ${hostOf(existingByName)}`);
-      } else if (existingByName) {
+        continue;
+      }
+      let kind;
+      try {
+        kind = await this.#kindOfRepository({ git, token, id: project.id });
+      } catch (error) {
+        console.warn(`[findEnrolledLines] "${project.name}" on ${host} is left for later: its spl.json could not be read (${error.message})`);
+        continue;
+      }
+      if (existingByName) {
+        existingByName.kind = kind;
         existingByName.repoId = project.id;
         existingByName.namespaceId = project.namespaceId;
         existingByName.webUrl = project.webUrl;
@@ -351,8 +361,7 @@ export default class LineService {
           namespaceId: project.namespaceId,
           webUrl: project.webUrl,
           webIdeUrl: project.webIdeUrl,
-          // listing lines must not fail for a repository that cannot be read right now: it is taken for plain and the kind is corrected when it is
-          kind: await this.#kindOfRepository({ git, token, id: project.id }).catch(() => 'plain'),
+          kind,
           ownerId: userId,
           ...createdAtOf(project),
         });

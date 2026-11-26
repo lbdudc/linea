@@ -25,6 +25,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGitCatalog, createGitProvider, ensureRegistryRepository, publishFolder } from '@lbdudc/linea-git';
+import { publishExamples } from '../src/model/git/examples.js';
 
 const args = process.argv.slice(2);
 const option = (name) => {
@@ -72,7 +73,11 @@ if (registry && !dryRun) {
   if (created) console.log(`+ registry ${registryPath}`);
 }
 const catalog = registry && !dryRun ? createGitCatalog({ provider, token, location: registry }) : undefined;
-await publishFolder({ provider, token, dir, root, dryRun, catalog, log: (line) => console.log(line) });
+const results = await publishFolder({ provider, token, dir, root, dryRun, skipPublished: true, catalog, log: (line) => console.log(line) });
+for (const { path: repositoryPath, version } of results.filter(({ status }) => status === 'already-published')) {
+  console.log(`= ${repositoryPath}  v${version} is already published`);
+}
+await publishExamples({ provider, token, root, dir, dryRun, log: (line) => console.log(line) });
 console.log(dryRun
   ? 'Dry run: nothing was written.'
   : `Done. LINEA lists them under Modules${registry ? ` (registered in ${registry}: start the server with LINEA_REGISTRY=${registry})` : ' (it reads the repositories you are a member of)'}.`);
